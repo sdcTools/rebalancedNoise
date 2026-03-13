@@ -1,0 +1,145 @@
+---
+title: "Getting Started with rebalancedNoise"
+output: rmarkdown::html_vignette
+bibliography: references.bib
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{Getting Started with rebalancedNoise}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## The EZS Method
+
+The `rebalancedNoise` package implements the EZS method as described by @Sabolova2025. It applies record-level noise with a dynamic rebalancing algorithm to preserve data quality in non-sensitive cells while ensuring statistical disclosure control (SDC) across complex hierarchies.
+
+## Example with Multiple Variables
+
+The engine can process multiple numerical variables. Initializing them together ensures the underlying SDC problem structure is consistent.
+
+```{r setup}
+library(rebalancedNoise)
+library(data.table)
+library(sdcHierarchies)
+
+# Generate dummy microdata
+set.seed(1)
+dt <- data.table(
+  ID = 1:200,
+  REGION = sample(c("North", "South"), 200, replace = TRUE),
+  INDUSTRY = sample(c("Tech", "Mfg", "Retail"), 200, replace = TRUE),
+  turnover = runif(200, 10, 1000),
+  assets = runif(200, 50, 5000),
+  direction = sample(c(1, -1), 200, replace = TRUE),
+  noise_multiplier = 0.05 
+)
+
+# Define hierarchies
+dims <- list(
+  REGION = hier_create("Total", nodes = c("North", "South")),
+  INDUSTRY = hier_create("Total", nodes = c("Tech", "Mfg", "Retail"))
+)
+
+# Initialize and perturb
+sdc <- rn_setup(
+  data = dt, 
+  dim_list = dims, 
+  num_vars = c("turnover", "assets"), 
+  sensitive_params = list(n_threshold = 5)
+)
+
+sdc$perturb("turnover")
+sdc$perturb("assets")
+```
+
+## Flexible Output Formats
+
+The `get_results()` method provides two primary ways to view your data.
+
+### Long Format
+
+Ideal for automated processing or visualization with `ggplot2`. It uses standardized value columns and a `variable` column to distinguish between `turnover` and `assets`.
+
+```{r long}
+res_long <- sdc$get_results(format = "long")
+
+# Standardized names: val_orig, val_pert, diff_final_pct
+head(res_long[, .(variable, REGION, val_orig, val_pert, is_sens)])
+```
+
+### Wide Format (Default)
+
+The wide format pivots the data so that each hierarchical cell occupies a single row. Variable names are used as prefixes for the values.
+
+```{r wide}
+res_wide <- sdc$get_results(format = "wide")
+
+# Clean prefixes: [var]_orig, [var]_pert, [var]_is_sens
+head(res_wide[, .(REGION, INDUSTRY, turnover_orig, turnover_pert, assets_orig, assets_pert)])
+
+# Identify cells where rebalancing was most effective for turnover
+res_wide[turnover_is_sens == FALSE & abs(turnover_diff_final_pct) < 0.01]
+```
+
+## Output Variable Description
+
+The following variables are included in the results to help interpret the perturbation quality:
+
+| Variable | Description |
+|:---|:---|
+| `n_obs` | Number of microdata records contributing to the specific cell. |
+| `is_internal` | `TRUE` for base cells (leaf nodes); `FALSE` for hierarchical aggregates. |
+| `[var]_orig` | The original aggregated value before perturbation. |
+| `[var]_pert` | The final perturbed and rebalanced value. |
+| `[var]_is_sens` | `TRUE` if the specific variable was flagged as sensitive in that cell. |
+| `[var]_diff_final_pct` | The percentage deviation between original and final values. |
+
+## Evaluation of Results
+
+Before finalizing your tables, use the `$summarize()` method to evaluate the impact of the perturbation. This provides a high-density diagnostic report across three groups: **Overall**, **Non-Sensitive** (Rebalanced), and **Sensitive** (Fixed Noise).
+
+```{r summary}
+# Display statistics for the turnover variable
+sdc$summarize("turnover")
+```
+
+### How to Interpret the Summary
+
+* **MAPE (Initial vs. Final):** In the Non-Sensitive group, the *"Initial" MAPE* reflects the noise before rebalancing. The *"Final" MAPE* should be significantly lower, demonstrating the algorithm's effectiveness.
+* **Percentile Comparison:** By comparing the *"Initial"* and *"Final" Relative (%) distributions*, you can visualize the *"shrinking"* effect. A successful run will show the interquartile range (`25%` to `75%`) moving towards `0`.
+* **Tail Risks:** Monitor the `1%` and `99%` percentiles. These identify if specific cells in the hierarchy received disproportionately high noise, which can occasionally occur in very small or isolated nodes.
+* **Absolute Impact:** The *"Absolute (Units)"* distribution translates these percentages into the original scale of your data, helping you assess the actual impact on table utility.
+
+## Performance and Parallelization
+
+The EZS engine utilizes C++ with OpenMP for computationally intensive tasks. The number of threads (`n_threads`) is resolved during `rn_setup()` and remains fixed for the life of the object.
+
+The engine resolves the thread count using the following priority:
+
+1.  **Function Argument:** `rn_setup(..., n_threads = 4)`
+2.  **Global Option:** `options(rn_threads = 4)`
+3.  **Environment Variable:** `Sys.setenv(rn_threads = "4")`
+4.  **Automatic Fallback:** `parallel::detectCores() - 1` (Minimum of 1)
+
+```{r threads_example}
+# Example: Setting a session-wide preference
+options(rn_threads = 4)
+
+# Initialize - this object is now locked to 4 threads
+sdc <- rn_setup(dt, dims, "turnover")
+```
+
+## Summary of Logic
+
+* **Hierarchy Integrity:** Aggregations across the hierarchy remain additive.
+* **Automatic Cleanup:** Internal SDC identifiers are removed, leaving only the dimensions and results.
+* **Calculated Deviations:** Percentage deviations are rounded to 3 decimal places for immediate quality checks.
+
+## References

@@ -1,0 +1,37 @@
+Package: rebalancedNoise
+Title: Perturbative SDC for Magnitude Tables (EZS Method)
+Version: 0.1.0
+Authors@R: c(
+  person(
+    given="Bernhard", family="Meindl", 
+    email="bernhard.meindl@statistik.gv.at", 
+    role=c("aut", "cre")))
+Description: Implements the EZS method for perturbative statistical
+    disclosure control as described in Almberg (2025), "Using perturbative
+    methods for magnitude tables in statistical disclosure control"
+    presented at UNECE
+    <https://www.unece.org/sites/default/files/2025-10/SDC2025_Sf_Sweden_Almberg_D.pdf>.
+    The package provides an R6-based engine that applies record-level noise
+    with a dynamic rebalancing algorithm to ensure high data quality and
+    internal additivity within table hierarchies.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Rcpp: TRUE
+Imports:
+    R6,
+    data.table,
+    sdcTable,
+    cli,
+    progress,
+    Rcpp,
+    sdcHierarchies,
+    parallel
+LinkingTo:
+    Rcpp
+SystemRequirements: GNU make
+RoxygenNote: 7.3.3
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+Roxygen: list(markdown = TRUE)
