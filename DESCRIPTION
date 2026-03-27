@@ -35,3 +35,4 @@ Suggests:
     rmarkdown
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
+URL: https://sdctools.github.io/rebalancedNoise/
