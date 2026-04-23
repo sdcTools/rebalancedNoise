@@ -14,7 +14,7 @@ Description: Implements the EZS method for perturbative statistical
     The package provides an R6-based engine that applies record-level noise
     with a dynamic rebalancing algorithm to ensure high data quality and
     internal additivity within table hierarchies.
-License: MIT + file LICENSE
+License: GPL (>= 2)
 Encoding: UTF-8
 Rcpp: TRUE
 Imports:
