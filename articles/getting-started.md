@@ -14,9 +14,15 @@ The engine can process multiple numerical variables. Initializing them
 together ensures the underlying SDC problem structure is consistent.
 
 ``` r
+
 library(rebalancedNoise)
-#> Welcome to rebalancedNoise v0.1.0 - Perturbation for Magnitude Tables
+#> Welcome to rebalancedNoise v0.1.1 - Perturbation for Magnitude Tables
 library(data.table)
+#> 
+#> Attaching package: 'data.table'
+#> The following object is masked from 'package:base':
+#> 
+#>     %notin%
 library(sdcHierarchies)
 #> Loading required package: shinythemes
 #> Package 'sdcHierarchies' 0.23.0 has been loaded.
@@ -74,6 +80,7 @@ standardized value columns and a `variable` column to distinguish
 between `turnover` and `assets`.
 
 ``` r
+
 res_long <- sdc$get_results(format = "long")
 
 # Standardized names: val_orig, val_pert, diff_final_pct
@@ -94,6 +101,7 @@ The wide format pivots the data so that each hierarchical cell occupies
 a single row. Variable names are used as prefixes for the values.
 
 ``` r
+
 res_wide <- sdc$get_results(format = "wide")
 
 # Clean prefixes: [var]_orig, [var]_pert, [var]_is_sens
@@ -162,14 +170,14 @@ res_wide[turnover_is_sens == FALSE & abs(turnover_diff_final_pct) < 0.01]
 The following variables are included in the results to help interpret
 the perturbation quality:
 
-| Variable               | Description                                                              |
-|:-----------------------|:-------------------------------------------------------------------------|
-| `n_obs`                | Number of microdata records contributing to the specific cell.           |
-| `is_internal`          | `TRUE` for base cells (leaf nodes); `FALSE` for hierarchical aggregates. |
-| `[var]_orig`           | The original aggregated value before perturbation.                       |
-| `[var]_pert`           | The final perturbed and rebalanced value.                                |
-| `[var]_is_sens`        | `TRUE` if the specific variable was flagged as sensitive in that cell.   |
-| `[var]_diff_final_pct` | The percentage deviation between original and final values.              |
+| Variable | Description |
+|:---|:---|
+| `n_obs` | Number of microdata records contributing to the specific cell. |
+| `is_internal` | `TRUE` for base cells (leaf nodes); `FALSE` for hierarchical aggregates. |
+| `[var]_orig` | The original aggregated value before perturbation. |
+| `[var]_pert` | The final perturbed and rebalanced value. |
+| `[var]_is_sens` | `TRUE` if the specific variable was flagged as sensitive in that cell. |
+| `[var]_diff_final_pct` | The percentage deviation between original and final values. |
 
 ## Evaluation of Results
 
@@ -179,6 +187,7 @@ report across three groups: **Overall**, **Non-Sensitive** (Rebalanced),
 and **Sensitive** (Fixed Noise).
 
 ``` r
+
 # Display statistics for the turnover variable
 sdc$summarize("turnover")
 #> 
@@ -238,6 +247,7 @@ The engine resolves the thread count using the following priority:
 4.  **Automatic Fallback:** `parallel::detectCores() - 1` (Minimum of 1)
 
 ``` r
+
 # Example: Setting a session-wide preference
 options(rn_threads = 4)
 
@@ -262,6 +272,6 @@ sdc <- rn_setup(dt, dims, "turnover")
 
 Sabolová, Radka, Özlem Tepe, Nils Adriansson, and Lars-Erik Almberg.
 2025. “Using Perturbative Methods for Magnitude Tables in Statistical
-Disclosure Control.” In *Proceedings of the Expert Meeting on
-Statistical Data Confidentiality*. Barcelona, Spain: UNECE.
+Disclosure Control.” *Proceedings of the Expert Meeting on Statistical
+Data Confidentiality* (Barcelona, Spain).
 <https://unece.org/sites/default/files/2025-10/SDC2025_Sf_Sweden_Almberg_D.pdf>.

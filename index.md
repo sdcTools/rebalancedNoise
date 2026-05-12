@@ -26,6 +26,7 @@ additive consistency across complex hierarchies.
 ## Installation
 
 ``` r
+
 # Install from Github
 devtools::install_github("sdcTools/rebalancedNoise")
 ```
@@ -33,6 +34,7 @@ devtools::install_github("sdcTools/rebalancedNoise")
 ## Quick Start
 
 ``` r
+
 library(rebalancedNoise)
 
 # Generate Dummy-Data
@@ -77,5 +79,6 @@ parallelization settings (via
 variables), please see the full package vignette:
 
 ``` r
+
 vignette("getting-started", package = "rebalancedNoise")
 ```
