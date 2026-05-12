@@ -9,3 +9,4 @@ man
 src/*.so
 src/*.o
 docs
+.vscode
