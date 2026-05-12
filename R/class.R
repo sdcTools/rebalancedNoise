@@ -370,7 +370,8 @@ rebalancedNoise <- R6Class(
       n_obs <- nrow(sub_dt)
       v_dt <- sub_dt[, .(orig = .SD[[v]], mult = noise_multiplier, dirs = direction)]
       v_dt[, original_idx := .I]
-      setorder(v_dt, -orig) # Sort descending for better error compensation
+      v_dt[, impact := abs(orig * mult)]
+      setorder(v_dt, -impact) # Sort descending by impact (abs(orig * mult))
 
       orig <- v_dt$orig; mult <- v_dt$mult; dirs <- v_dt$dirs
       pert <- numeric(n_obs)

@@ -1,6 +1,6 @@
 Package: rebalancedNoise
 Title: Perturbative SDC for Magnitude Tables (EZS Method)
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
   person(
     given="Bernhard", family="Meindl", 
@@ -29,10 +29,10 @@ Imports:
 LinkingTo:
     Rcpp
 SystemRequirements: GNU make
-RoxygenNote: 7.3.3
 Suggests: 
     knitr,
     rmarkdown
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 URL: https://sdctools.github.io/rebalancedNoise/
+Config/roxygen2/version: 8.0.0

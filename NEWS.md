@@ -1,3 +1,6 @@
+# rebalancedNoise 0.1.1
+- Initial ordering in `$rebalance()` is now based on impact (`abs(orig * mult)`)
+
 # rebalancedNoise 0.1.0
 
 - **Initial release** of the `rebalancedNoise` package.
