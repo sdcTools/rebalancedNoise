@@ -20,6 +20,9 @@ additive consistency across complex hierarchies.
 - **Built-in Diagnostics:** Powerful `$summarize()` tools to evaluate
   rebalancing efficiency and data utility via high-density statistical
   reports.
+- **Two Interchangeable Interfaces:** A stateful R6 engine for
+  interactive table production and a functional, pipe-friendly API for
+  scripts and reproducible pipelines.
 - **Seamless Integration:** Designed to work directly with `data.table`
   and `sdcHierarchies`.
 
@@ -33,11 +36,15 @@ devtools::install_github("sdcTools/rebalancedNoise")
 
 ## Quick Start
 
+The same workflow, first with the R6 engine, then with the functional
+interface:
+
 ``` r
 
 library(rebalancedNoise)
+library(data.table)
 
-# Generate Dummy-Data
+# Generate dummy data
 N <- 100
 countries <- c("AT", "DE", "NL", "SE", "FR", "IT")
 set.seed(1)
@@ -53,32 +60,33 @@ dims <- list(
   country = sdcHierarchies::hier_create("Total", nodes = countries)
 )
 
-# Initialize the Object
-sdc <- rn_setup(
-    data = dt, 
-    dim_list = dims, 
-    num_vars = c("turnover"),
-    sensitive_params = list(n_threshold = 5)
-)
+# Option 1: R6 engine
+sdc <- rn_setup(data = dt, sensitive_params = list(n_threshold = 5))
+sdc$rebalance(dim_list = dims, num_var = "turnover")
+sdc$perturb(dim_list = dims, variables = "turnover", name = "table_a")
+sdc$summarize(table = "table_a")
+sdc$get_results("table_a", format = "long") # or "wide"
 
-# Perturb the numerical variable
-sdc$perturb("turnover")
+# Option 2: functional interface
+res <- dt |>
+  rn_init(sensitive_params = list(n_threshold = 5)) |>
+  rn_rebalance(dim_list = dims, num_var = "turnover") |>
+  rn_perturb(dim_list = dims, variables = "turnover")
 
-# Show summarize-statistics (initial vs. final perturbation)
-sdc$summarize("turnover")
-
-# extract results
-sdc$get_results("turnover", format = "long") # or "wide"
+rn_summarize(res)
+rn_format(res, format = "long") # or "wide"
 ```
 
 ## Documentation
 
-For a detailed walkthrough of the method, multi-variable handling, and
-parallelization settings (via
-[`options()`](https://rdrr.io/r/base/options.html) or environment
-variables), please see the full package vignette:
+Two vignettes document the package in both styles:
 
 ``` r
 
+# Overview of the method and both interfaces, with parallel examples
 vignette("getting-started", package = "rebalancedNoise")
+
+# Detailed workflows: multiple tables, linear combinations, caching,
+# rounding, evaluation, export and import, parallelization
+vignette("workflows", package = "rebalancedNoise")
 ```

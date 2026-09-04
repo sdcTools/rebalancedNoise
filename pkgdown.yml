@@ -1,9 +1,10 @@
 pandoc: 3.8.3
-pkgdown: 2.2.0
+pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   getting-started: getting-started.html
-last_built: 2026-05-12T07:21Z
+  workflows: workflows.html
+last_built: 2026-09-04T12:31Z
 urls:
   reference: https://sdctools.github.io/rebalancedNoise/reference
   article: https://sdctools.github.io/rebalancedNoise/articles
