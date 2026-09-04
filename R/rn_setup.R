@@ -2,6 +2,8 @@
 #'
 #' @description
 #' Initialize the SDC engine. No hierarchy definition needed at setup.
+#' Internally, `rn_setup()` calls [rn_init()] and passes the resulting
+#' state object to the R6 engine.
 #' @param data Input microdata containing `direction` and `noise_multiplier` columns.
 #'   Alternatively, can be a file path to an exported `rebalancedNoise_ExportData` object
 #'   or an export object itself for reusing previously rebalanced microdata.
@@ -16,6 +18,8 @@
 #'
 #' @export
 #' @rdname rn_setup
+#' @seealso [rn_init()], [rn_rebalance()], [rn_perturb()], [rn_format()],
+#'   [rn_summarize()] for the functional API.
 #' @references
 #' Sabolová, R., Tepe, Ö., Adriansson, N., & Almberg, L.-E. (2025).
 #' *Using Perturbative Methods for Magnitude Tables in Statistical Disclosure Control*.
@@ -98,85 +102,20 @@
 #'
 #' # Summarize results
 #' sdc$summarize(table = "table_a", target_vars = "turnover")
+#'
+#' # Bridge to the functional API (S3 objects)
+#' state <- sdc$get_state()
+#' res_s3 <- rn_perturb(state, dim_list = dims_table, variables = "workers")
+#' data.table::as.data.table(res_s3)
 rn_setup <- function(
   data,
   sensitive_params = list(n_threshold = 3),
   n_threads = NULL
 ) {
-  # Check if data is a file path (auto-import)
-  if (is.character(data) && length(data) == 1 && file.exists(data)) {
-    export_data <- readRDS(data)
-    if (!inherits(export_data, "rebalancedNoise_ExportData")) {
-      cli::cli_abort(
-        "File does not contain valid 'rebalancedNoise_ExportData' object."
-      )
-    }
-    # Validate and use exported data
-    .validate_export_data(export_data)
-    data <- export_data$microdata
-    if (!is.null(export_data$sensitive_params)) {
-      sensitive_params <- export_data$sensitive_params
-    }
-    import_rebal_status <- export_data$rebal_status
-    import_result_tables <- export_data$result_tables
-  } else if (inherits(data, "rebalancedNoise_ExportData")) {
-    # Direct export object
-    .validate_export_data(data)
-    import_rebal_status <- data$rebal_status
-    import_result_tables <- data$result_tables
-    data <- data$microdata
-    if (!is.null(data$sensitive_params)) {
-      sensitive_params <- data$sensitive_params
-    }
-  } else {
-    # Regular data - no import status
-    import_rebal_status <- NULL
-    import_result_tables <- NULL
-    # Sanity Checks for regular data
-    # Check data type
-    if (!is.data.frame(data)) {
-      cli::cli_abort(
-        "{.arg data} must be a data.frame or data.table, not {.cls {class(data)}}."
-      )
-    }
-
-    # Check for mandatory columns in EZS (direction & noise_multiplier)
-    req_cols <- c("direction", "noise_multiplier")
-    missing_req <- setdiff(req_cols, names(data))
-    if (length(missing_req) > 0) {
-      cli::cli_abort(c(
-        "x" = "EZS method requires specific columns in the microdata:",
-        "i" = "Missing: {.val {missing_req}}",
-        "*" = "Ensure {.code direction} (1/-1) and {.code noise_multiplier} are present."
-      ))
-    }
-
-    # Check 'direction' values (must be 1 or -1)
-    dir_vals <- data[["direction"]]
-    if (!is.numeric(dir_vals) || !all(dir_vals %in% c(1, -1))) {
-      cli::cli_abort(c(
-        "x" = "Column {.code direction} contains invalid values.",
-        "i" = "Only {.val {c(1, -1)}} are allowed.",
-        "!" = "Found values like: {.val {unique(dir_vals)[1:min(3, length(unique(dir_vals)))]}}."
-      ))
-    }
-
-    # Check 'noise_multiplier' is positive
-    if (
-      !is.numeric(data[["noise_multiplier"]]) ||
-        any(data[["noise_multiplier"]] < 0)
-    ) {
-      cli::cli_abort(
-        "{.code noise_multiplier} must be a positive numeric column."
-      )
-    }
-  }
-
-  rebalancedNoise$new(
+  state <- rn_init(
     data = data,
     sensitive_params = sensitive_params,
-    n_threads = n_threads,
-    import_rebal_status = import_rebal_status,
-    import_result_tables = import_result_tables
+    n_threads = n_threads
   )
+  rebalancedNoise$new(state)
 }

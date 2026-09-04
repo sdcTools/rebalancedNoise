@@ -7,6 +7,7 @@
 #' @importFrom Rcpp sourceCpp
 #' @importFrom sdcHierarchies hier_create
 #' @importFrom parallel detectCores
+#' @importFrom stats quantile
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib rebalancedNoise, .registration = TRUE
 "_PACKAGE"
@@ -23,5 +24,19 @@ utils::globalVariables(c(
   "noise_multiplier",
   "original_idx",
   "impact",
-  "slot"
+  "slot",
+  "var_name",
+  "temp_var",
+  "measure_type",
+  "is_sensitive",
+  "val_orig",
+  "val_pert",
+  "val_pert_init",
+  "diff_init_pct",
+  "diff_final_pct",
+  "is_internal",
+  "is_internal.y",
+  "strID.new",
+  "pert_val",
+  "dir_used"
 ))

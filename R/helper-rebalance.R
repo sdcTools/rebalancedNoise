@@ -1,9 +1,6 @@
 #' @importFrom data.table data.table as.data.table copy setorder setnames setkey
 NULL
 
-# Utility for NULL handling (defined in class.R, but available globally)
-`%||%` <- function(a, b) if (!is.null(a)) a else b
-
 # Generate deterministic hash from dim_list, sensitive_params and rounding
 # flag for table identification
 .get_table_hash <- function(dim_list, sensitive_params = list(), round = FALSE) {
@@ -182,39 +179,6 @@ NULL
   return(is_base_dt[, .(strID, is_base_cell)])
 }
 
-# Internal helper: Compute sensitivity for all records
-# Extracted from $perturb() method
-# DEPRECATED: Use .compute_cell_sensitivity() instead
-.compute_sensitivity <- function(data, sensitive_params, n_threads = 1L) {
-  # Fast-path for n_threshold only (no dominance rules)
-  is_only_n <- (is.null(sensitive_params$p_rule) ||
-    sensitive_params$p_rule == 0) &&
-    (is.null(sensitive_params$nk_rule$n) || sensitive_params$nk_rule$n == 0)
-
-  if (is_only_n) {
-    n_thresh <- as.integer(sensitive_params$n_threshold %||% 0)
-    # Returns logical vector
-    return(data$n_obs <= n_thresh)
-  }
-
-  # Full sensitivity checking with dominance rules
-  setorderv(data, c("strID", "vals"), c(1, -1))
-  group_starts <- which(!duplicated(data$strID)) - 1
-
-  is_sens <- check_sensitivity_cpp(
-    vals = data$vals,
-    ids = data$strID,
-    group_starts = group_starts,
-    n_threshold = as.integer(sensitive_params$n_threshold %||% 0),
-    p_rule = as.double(sensitive_params$p_rule %||% 0),
-    nk_n = as.integer(sensitive_params$nk_rule$n %||% 0),
-    nk_k = as.double(sensitive_params$nk_rule$k %||% 0),
-    n_threads = as.integer(n_threads)
-  )
-
-  return(is_sens)
-}
-
 # Internal helper: Rebalance a single cell
 # Extracted from private$rebalance() method
 # Returns a list with perturbed values and the exact directions used
@@ -303,7 +267,11 @@ NULL
   base_cells <- .identify_base_cells(prob_object, dim_names, data_summary)
   base_cell_ids <- base_cells[is_base_cell == TRUE, as.character(strID)]
 
-  # Join mapping back to microdata
+  # Join mapping back to microdata (drop stale strID from a previous run,
+  # e.g. when rebalancing is performed again on already-rebalanced microdata)
+  if ("strID" %in% names(data)) {
+    data[, strID := NULL]
+  }
   data <- merge(data, struct_mapping, by = dim_names, all.x = TRUE)
   data[, strID := as.character(strID)]
 

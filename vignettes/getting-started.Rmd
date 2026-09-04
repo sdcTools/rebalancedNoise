@@ -421,6 +421,56 @@ The exported object contains:
 
 When importing, `rn_setup()` validates that the file contains a valid export object with required columns and consistent structure.
 
+## Functional Workflow (Pipe API)
+
+Instead of the stateful R6 engine, the package also offers a functional API built
+around plain R functions and S3 objects. Each pipeline step validates its input
+class strictly and returns a typed S3 object that the next step consumes:
+
+| Step | Function | Input | Output class |
+|:---|:---|:---|:---|
+| 1 | `rn_init()` | data.frame / export object / RDS path | `rn_initialized` |
+| 2 | `rn_rebalance()` | `rn_initialized` (or `rn_rebalanced`) | `rn_rebalanced` |
+| 3 | `rn_perturb()` | `rn_rebalanced` | `rn_perturbed` |
+| 4 | `rn_format()` / `rn_summarize()` | `rn_perturbed` | `data.table` / summary list |
+
+```{r functional-workflow}
+# A complete pipe: initialize -> rebalance -> perturb -> tabulate
+res <- dt |>
+  rn_init(sensitive_params = list(n_threshold = 5)) |>
+  rn_rebalance(dim_list = dims_detailed, num_var = "turnover") |>
+  rn_perturb(dim_list = dims_country_only, variables = c("turnover", "assets"))
+
+res
+
+# The result is a plain wide data.table
+head(as.data.table(res))
+
+# Long format and summaries use the same object
+head(rn_format(res, format = "long"))
+```
+
+Because the intermediate objects carry their metadata (hierarchies, SDC
+parameters, hash), the pipeline is fully reproducible. The two APIs are fully
+interoperable:
+
+```{r functional-interop}
+# R6 engine state can be fed into the functional API
+sdc_fun <- rn_setup(data = dt, sensitive_params = list(n_threshold = 5))
+sdc_fun$rebalance(dim_list = dims_detailed, num_var = "turnover")
+
+state <- sdc_fun$get_state()  # rn_rebalanced
+res2 <- rn_perturb(state, dim_list = dims_industry_only, variables = "workers")
+
+# ... and R6 result tables can be retrieved as S3 objects
+sdc_fun$perturb(dim_list = dims_country_only, variables = "turnover", name = "t_x")
+rn_summarize(sdc_fun$get_table("t_x"))
+```
+
+Note that `rn_perturb()` and `rn_summarize()` **strictly** require their S3
+input objects: a plain `data.table` (even with a `direction_rebalanced`
+column) is rejected with a hint pointing to the required preceding step.
+
 ## Utility Methods
 
 The package provides utility methods for data extraction and table management.

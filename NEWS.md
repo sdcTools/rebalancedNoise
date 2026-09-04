@@ -1,3 +1,20 @@
+# rebalancedNoise 0.3.0
+
+## New Features
+- Functional (pipe) API with typed S3 objects: `rn_init()` (`rn_initialized`), `rn_rebalance()` (`rn_rebalanced`), and `rn_perturb()` (`rn_perturbed`). Each step strictly validates its input class and returns an object consumable by the next step
+- `rn_format()`: Retrieve a `rn_perturbed` result table in wide or long format (functional counterpart of `$get_results()`)
+- `rn_summarize()`: Summarize a `rn_perturbed` result table (functional counterpart of `$summarize()`)
+- `print()` and `as.data.table()` methods for all three pipeline classes
+- New R6 bridge methods `get_state()` (returns `rn_rebalanced`/`rn_initialized`) and `get_table(name)` (returns `rn_perturbed`) to feed R6 engine state into the functional API and vice versa
+- `rn_setup()` and the R6 `$initialize()` now reuse the exported `rn_init()` internally
+
+## Bug Fixes
+- Calling `$rebalance()` (or `rn_rebalance()`) a second time no longer fails with "object 'strID' not found"; a stale `strID` column from a previous run is dropped before the structural merge
+
+## Internals
+- R6 engine and functional API share the same core: perturbation/tabulation (`.perturb_tabulate()`), variable merging (`.merge_var_into_table()`), formatting (`.process_result_table()`), and summaries (`.summarize_entry()`)
+- Removed deprecated internal `.compute_sensitivity()`; single package-wide definition of `%||%`
+
 # rebalancedNoise 0.2.0
 
 ## New Features
