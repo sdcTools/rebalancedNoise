@@ -19,6 +19,9 @@
 - R6 engine and functional API share the same core: perturbation/tabulation (`.perturb_tabulate()`), variable merging (`.merge_var_into_table()`), formatting (`.process_result_table()`), and summaries (`.summarize_entry()`)
 - Removed deprecated internal `.compute_sensitivity()`; single package-wide definition of `%||%`
 
+## Documentation
+- Vignettes split into two: "Getting Started with rebalancedNoise" (overview of the method and both interfaces with parallel R6 and functional examples) and "Perturbation Workflows" (detailed features shown in both styles: multiple tables, linear combinations, naming and caching, rounding, evaluation, export and import, parallelization)
+
 # rebalancedNoise 0.2.0
 
 ## New Features

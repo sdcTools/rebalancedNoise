@@ -1,0 +1,439 @@
+---
+title: "Perturbation Workflows"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Perturbation Workflows}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+This vignette covers the detailed features of `rebalancedNoise` after the
+basic workflow. Every feature is shown in both interfaces: the stateful R6
+engine (`rn_setup()` plus `$` methods) and the functional interface
+(`rn_init()` plus piped function calls). The basics of both styles are
+explained in `vignette("getting-started", package = "rebalancedNoise")`.
+
+## Setup
+
+The same simulated data is used throughout this vignette. Country
+probabilities are unequal so that some cells hold fewer than five records.
+
+```{r setup}
+library(rebalancedNoise)
+library(data.table)
+library(sdcHierarchies)
+
+set.seed(1)
+N <- 300
+countries <- c("AT", "DE", "NL", "SE", "FR", "IT")
+industries <- c("Tech", "Mfg", "Retail", "Services")
+
+country_probs <- c(0.25, 0.25, 0.20, 0.15, 0.10, 0.05)
+
+dt <- data.table(
+  country = sample(countries, N, replace = TRUE, prob = country_probs),
+  industry = sample(industries, N, replace = TRUE),
+  turnover = runif(N, 1000, 10000),
+  workers = sample(10:500, N, replace = TRUE),
+  assets = runif(N, 10000, 100000),
+  direction = sample(c(1, -1), N, replace = TRUE),
+  noise_multiplier = sample(seq(0.75, 1.25, by = 0.01), N, replace = TRUE)
+)
+
+dims_detailed <- list(
+  country = hier_create("Total", nodes = countries),
+  industry = hier_create("Total", nodes = industries)
+)
+
+dims_country_only <- list(
+  country = hier_create("Total", nodes = countries)
+)
+
+dims_industry_only <- list(
+  industry = hier_create("Total", nodes = industries)
+)
+```
+
+## One Rebalancing, Many Tables
+
+Sensitive cell detection runs once during rebalancing and is reused by every
+following perturbation. Rebalancing is the expensive step, so the choice of
+the detailed hierarchy deserves attention. Publication tables can then use
+any coarser hierarchy and any numeric variable without further rebalancing.
+
+The chunks below set up the two core objects that the rest of this vignette
+builds on. Both objects rebalance `turnover` on the detailed structure
+(country x industry) and create one country-level table.
+
+```{r core-r6}
+sdc <- rn_setup(data = dt, sensitive_params = list(n_threshold = 5))
+sdc$rebalance(dim_list = dims_detailed, num_var = "turnover")
+sdc$perturb(dim_list = dims_country_only, variables = "turnover", name = "table_a")
+```
+
+```{r core-fun}
+state_fun <- dt |>
+  rn_init(sensitive_params = list(n_threshold = 5)) |>
+  rn_rebalance(dim_list = dims_detailed, num_var = "turnover")
+
+t_a <- rn_perturb(state_fun, dim_list = dims_country_only, variables = "turnover")
+```
+
+Additional tables reuse the same rebalanced state. In the R6 engine every
+table is stored under a name inside the object:
+
+```{r many-tables-r6}
+# A second table, different hierarchy, two variables in one call
+sdc$perturb(
+  dim_list = dims_industry_only,
+  variables = c("turnover", "assets"),
+  name = "table_b"
+)
+res_b <- sdc$get_results("table_b")
+head(res_b[, list(
+  industry, turnover, turnover_init, turnover_pert,
+  assets, assets_init, assets_pert
+)])
+
+# All stored tables at once, returned as a named list
+names(sdc$get_results())
+```
+
+In the functional interface you keep the objects yourself, for example in a
+named list. The `rn_rebalanced` object `state_fun` can be perturbed as often
+as needed:
+
+```{r many-tables-fun}
+t_b <- rn_perturb(
+  state_fun,
+  dim_list = dims_industry_only,
+  variables = c("turnover", "assets")
+)
+
+tables <- list(table_a = rn_format(t_a), table_b = rn_format(t_b))
+names(tables)
+```
+
+There is no automatic caching in the functional interface. A repeated call to
+`rn_perturb()` recomputes the table. In the R6 engine a repeated call with
+the same name and the same parameters is recognized and skipped.
+
+## Sensitive Cell Detection
+
+The results carry the sensitivity flags that the rebalancing step derived
+from `sensitive_params`. Cells with few contributing records are flagged, and
+their noise direction stays fixed while the algorithm optimizes all other
+directions.
+
+```{r sensitive-cells}
+res_a <- sdc$get_results("table_a")
+res_a[, list(country, n_obs, is_internal, is_sens_turnover)][order(n_obs)]
+```
+
+The `n_obs` column counts the records contributing to each cell. The
+`is_internal` column marks base cells, and `is_sens_turnover` reports the
+sensitivity decision for that variable. In long format the same information
+appears in the standardized `is_sensitive` column.
+
+## Table Naming and Caching in the R6 Engine
+
+Every R6 result table is identified by its name and by a hash of the
+hierarchy, the SDC parameters, and the rounding flag. The hash enables two
+protections.
+
+Repeating an identical call recomputes nothing:
+
+```{r hash-cache}
+sdc$list_tables()
+
+# Same name, same hash: the calculation is skipped
+sdc$perturb(dim_list = dims_country_only, variables = "turnover", name = "table_a")
+```
+
+Reusing a name for a different table structure raises an error instead of
+silently overwriting a stored result:
+
+```{r hash-collision}
+# Different hierarchy under an existing name: error
+try(sdc$perturb(dim_list = dims_industry_only, variables = "turnover", name = "table_a"))
+
+# Different structures need different names
+sdc$perturb(dim_list = dims_industry_only, variables = "turnover", name = "table_c")
+sdc$list_tables()
+```
+
+The functional interface has no table registry. You store each `rn_perturbed`
+object under a name of your own choosing, so collisions cannot occur.
+
+## Rounding to Whole Numbers
+
+Some publications require integer values. The `round` argument, available in
+`sdc$perturb()` and `rn_perturb()`, rounds the perturbed values on the
+microdata level with R's `round()` before the tables are computed. Because
+rounding happens before tabulation, every published value is a whole number.
+
+```{r round-r6}
+sdc$perturb(
+  dim_list = dims_country_only, variables = "turnover",
+  name = "table_rounded", round = TRUE
+)
+res_rounded <- sdc$get_results("table_rounded")
+head(res_rounded[, list(country, turnover, turnover_pert)])
+
+all(res_rounded$turnover_pert == round(res_rounded$turnover_pert))
+```
+
+```{r round-fun}
+t_rounded <- rn_perturb(
+  state_fun,
+  dim_list = dims_country_only, variables = "turnover", round = TRUE
+)
+res_rounded_fun <- rn_format(t_rounded)
+all(res_rounded_fun$turnover_pert == round(res_rounded_fun$turnover_pert))
+```
+
+Four points to keep in mind:
+
+- Only the perturbed columns (`[var]_init` and `[var]_pert`) are rounded.
+  The original values in `[var]` stay unchanged.
+- Rounding adds up to 0.5 per record, so cell totals can shift a little.
+- R's `round()` rounds halves toward the nearest even number, so 2.5 becomes
+  2. Exact halves rarely occur in perturbed data.
+- The round flag is part of the R6 table hash. Reusing a table name with a
+  different `round` value raises a collision error.
+
+## Rebalancing on Linear Combinations
+
+A single variable is not always the right basis for direction optimization.
+If turnover, workers, and assets matter equally, rebalancing on only one of
+them protects the others less. In that case, build a weighted linear
+combination of standardized variables and use it as the rebalancing target.
+The algorithm then protects all variables together.
+
+Missing values need attention here. A missing variable should neither add to
+nor subtract from the combined score, and dropping records with missing
+values wastes information. The recommended solution is to replace missing
+values with 0 before scaling. After centering, 0 equals the mean, so missing
+values contribute neutrally.
+
+```{r linear-comb-data}
+# Work on a copy so that dt stays complete
+dt2 <- copy(dt)
+dt2[sample(1:N, 20), assets := NA]
+sum(is.na(dt2$assets))
+
+# Standardize turnover and workers, replace NA with 0 before scaling assets
+dt2[, turnover_std := scale(turnover)]
+dt2[, workers_std := scale(workers)]
+dt2[, assets_std := scale(ifelse(is.na(assets), 0, assets))]
+
+# Weighted combination: 30 percent turnover, 30 percent workers, 40 percent assets
+dt2[, rebal_combined := 0.3 * turnover_std + 0.3 * workers_std + 0.4 * assets_std]
+sum(is.na(dt2$rebal_combined))
+```
+
+The combined variable is used only in the rebalancing step. The perturbation
+still operates on the original variables.
+
+```{r linear-comb-r6}
+sdc_lc <- rn_setup(data = dt2, sensitive_params = list(n_threshold = 5))
+sdc_lc$rebalance(dim_list = dims_detailed, num_var = "rebal_combined")
+sdc_lc$perturb(
+  dim_list = dims_country_only,
+  variables = c("turnover", "workers", "assets"),
+  name = "multi_var_table"
+)
+res_lc <- sdc_lc$get_results("multi_var_table")
+head(res_lc[, list(country, turnover, turnover_pert, workers, workers_pert)])
+```
+
+```{r linear-comb-fun}
+res_lc_fun <- dt2 |>
+  rn_init(sensitive_params = list(n_threshold = 5)) |>
+  rn_rebalance(dim_list = dims_detailed, num_var = "rebal_combined") |>
+  rn_perturb(
+    dim_list = dims_country_only,
+    variables = c("turnover", "workers", "assets")
+  )
+head(rn_format(res_lc_fun)[, list(country, turnover, turnover_pert)])
+```
+
+## Evaluating Results
+
+Before releasing tables, inspect the perturbation impact. The R6 method
+`$summarize()` and the function `rn_summarize()` report the same statistics.
+
+```{r evaluate}
+sdc$summarize(table = "table_a", target_vars = "turnover")
+```
+
+```{r evaluate-fun}
+rn_summarize(t_a)
+```
+
+How to read the report:
+
+- **MAPE** is the mean absolute percentage error between original and
+  perturbed values. MAPE (Initial) refers to the noise with the original
+  random directions, before rebalancing. MAPE (Final) refers to the published
+  values. A lower final value shows the effect of the rebalancing.
+- **Noise Reduction** states by how many percent the final MAPE is below the
+  initial MAPE.
+- **Percentiles** list nine levels of the deviation distribution: 0, 1, 5,
+  25, 50, 75, 95, 99, and 100 percent. The first two rows are relative
+  deviations in percent, initial and final. The third row gives absolute
+  deviations in the original unit of the variable. Check the 1 and 99 percent
+  levels for extreme deviations in single cells.
+- **Sensitivity Rate** states which share of cells was flagged as sensitive.
+  These cells received fixed noise for disclosure protection.
+
+Both functions return the statistics invisibly as a named list, so you can
+store and process them. With a single `target_vars` entry the list contains
+the elements `overall` and `meta`, with one element per variable otherwise:
+
+```{r summarize-structure}
+result_a <- sdc$summarize(table = "table_a", target_vars = "turnover")
+names(result_a)
+names(result_a$overall)
+names(result_a$meta)
+
+result_b <- sdc$summarize(table = "table_b", target_vars = c("turnover", "assets"))
+names(result_b)
+```
+
+## Export and Import
+
+Rebalancing large datasets takes time. The rebalanced state can be stored and
+loaded again so that later sessions only pay for the perturbations.
+
+### Using the R6 engine
+
+`$export()` writes the rebalanced microdata, the SDC parameters, the
+rebalancing status, and, optionally, the cached result tables. `rn_setup()`
+recognizes an export object or the path to an RDS file and restores the full
+state.
+
+```{r export-r6}
+export_file <- file.path(tempdir(), "rebalanced_data.rds")
+sdc$export(file = export_file)
+
+# In a later session: load and continue without rebalancing again
+sdc2 <- rn_setup(export_file)
+sdc2$list_tables()
+
+# New tables from the imported state, no recomputation of the directions
+sdc2$perturb(dim_list = dims_industry_only, variables = "workers", name = "table_d")
+sdc2$list_tables()
+```
+
+Pass `include_results = FALSE` to export only the rebalanced microdata, which
+produces a smaller file. On import, `rn_setup()` validates the object and
+rejects files with missing columns or invalid direction values.
+
+### Using the functional interface
+
+An `rn_rebalanced` object contains everything that is needed to perturb
+further tables, so a plain `saveRDS()` is enough:
+
+```{r export-fun}
+state_file <- file.path(tempdir(), "rebalanced_state.rds")
+saveRDS(state_fun, state_file)
+
+state_re <- readRDS(state_file)
+t_re <- rn_perturb(state_re, dim_list = dims_industry_only, variables = "workers")
+head(rn_format(t_re))
+```
+
+The R6 export object can also be fed directly into the functional interface,
+which makes the two persistence formats interchangeable:
+
+```{r export-mixed}
+rn_init(sdc$export(include_results = FALSE))
+```
+
+## Utility Methods
+
+### Microdata with Directions
+
+`sdc$get_microdata()` returns the microdata including `direction`,
+`direction_rebalanced`, and `noise_multiplier`. Set
+`include_record_id = TRUE` to add the internal record identifier that the
+rebalancing uses for tracking. The functional counterpart is
+`as.data.table()` applied to an `rn_rebalanced` object.
+
+```{r microdata}
+head(sdc$get_microdata())
+head(sdc$get_microdata(include_record_id = TRUE))
+
+# Functional equivalent
+head(as.data.table(state_fun))
+```
+
+### Listing Stored Tables
+
+`sdc$list_tables()` shows the name, the dimensions, and the variables of
+every table stored in the R6 object.
+
+```{r list-tables}
+sdc$list_tables()
+```
+
+### Starting Over with reset()
+
+Rebalancing can run once per R6 object and once per imported export state. A
+second call raises an error. `$reset()` returns the object to its initialized
+state: it removes the rebalancing artifacts (`direction_rebalanced`, `strID`,
+and `is_sens_*` columns), restores the original row order, and clears all
+cached tables. Optionally it accepts new SDC parameters.
+
+```{r reset}
+sdc_rst <- rn_setup(dt, sensitive_params = list(n_threshold = 5))
+sdc_rst$rebalance(dim_list = dims_detailed, num_var = "turnover")
+sdc_rst$perturb(dim_list = dims_detailed, variables = "turnover", name = "t1")
+
+# A second rebalance() on the same object is rejected
+try(sdc_rst$rebalance(dim_list = dims_country_only, num_var = "turnover"))
+
+# Reset, optionally with new parameters, then start again
+sdc_rst$reset(sensitive_params = list(n_threshold = 3))
+sdc_rst$rebalance(dim_list = dims_country_only, num_var = "turnover")
+sdc_rst$perturb(dim_list = dims_country_only, variables = "turnover", name = "t1")
+sdc_rst$list_tables()
+```
+
+After `$reset()` the object behaves like a freshly initialized one. The
+functional interface needs no equivalent: `rn_rebalance()` is stateless and
+can be applied to an `rn_rebalanced` object again at any time.
+
+## Performance and Parallelization
+
+The sensitivity check during rebalancing is the most time-consuming step and
+runs in C++ with OpenMP. It is used in `$rebalance()` and `rn_rebalance()`, in
+`$perturb()` with `strID`, and in `rn_perturb()` when the sensitivity flags of
+a result table are computed. The perturbation step itself runs single-threaded.
+
+The number of threads is resolved once in `rn_setup()` or `rn_init()` and then
+stays fixed for the object or state. Besides the `n_threads` argument there,
+the value can also be set globally with `options(rn_threads = 4)` or via the
+environment variable `rn_threads`, for example with `Sys.setenv(rn_threads = "4")`.
+The argument takes precedence over the option, and the option takes precedence
+over the environment variable. Without any of these settings, the default is
+the number of detected cores minus one, with a minimum of 1. This setting
+applies to both interfaces.
+
+## Summary
+
+Every feature of `rebalancedNoise` is reachable through both interfaces, and
+the interfaces can be combined at any stage of a workflow. The R6 engine adds
+naming, caching, and state management for interactive table production. The
+functional interface provides explicit, composable steps for scripts and
+reproducible pipelines. Choose by working style, not by capability.
