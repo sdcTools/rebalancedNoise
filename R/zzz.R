@@ -1,6 +1,4 @@
 .onAttach <- function(libname, pkgname) {
-  version <- utils::packageVersion(pkgname)
-  packageStartupMessage(
-    paste0("Welcome to rebalancedNoise v", version, " - Perturbation for Magnitude Tables")
-  )
+  v <- utils::packageVersion(pkgname)
+  packageStartupMessage(glue::glue("Welcome to rebalancedNoise {v}."))
 }

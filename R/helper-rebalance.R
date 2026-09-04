@@ -1,0 +1,368 @@
+#' @importFrom data.table data.table as.data.table copy setorder setnames setkey
+NULL
+
+# Utility for NULL handling (defined in class.R, but available globally)
+`%||%` <- function(a, b) if (!is.null(a)) a else b
+
+# Generate deterministic hash from dim_list, sensitive_params and rounding
+# flag for table identification
+.get_table_hash <- function(dim_list, sensitive_params = list(), round = FALSE) {
+  # Extract sorted dimension names for consistent hashing
+  dim_names <- sort(names(dim_list))
+  # Create deterministic string representation of dimensions
+  hash_input_dims <- paste(dim_names, collapse = "|")
+  # Create deterministic string representation of sensitive_params
+  # Sort parameter names for consistency
+  param_names <- sort(names(sensitive_params))
+  hash_input_params <- paste(
+    sapply(
+      param_names,
+      function(p) {
+        val <- sensitive_params[[p]]
+        if (is.list(val)) {
+          # Handle nested lists (e.g., nk_rule)
+          paste(
+            sort(names(val)),
+            sapply(val, function(v) paste(v, collapse = ",")),
+            collapse = ":"
+          )
+        } else {
+          paste(val, collapse = ",")
+        }
+      },
+      USE.NAMES = TRUE
+    ),
+    collapse = "|"
+  )
+  # Combine dimensions, params and rounding flag
+  hash_input <- paste(
+    hash_input_dims,
+    hash_input_params,
+    paste0("round=", as.character(isTRUE(round))),
+    sep = "::"
+  )
+  # Generate xxhash64 hash
+  xxhashlite::xxhash(hash_input)
+}
+
+# Validate export data structure and contents
+.validate_export_data <- function(export_data) {
+  if (!inherits(export_data, "rebalancedNoise_ExportData")) {
+    cli::cli_abort("Object must have class 'rebalancedNoise_ExportData'")
+  }
+
+  required <- c("microdata", "sensitive_params", "rebal_status")
+  missing <- setdiff(required, names(export_data))
+  if (length(missing) > 0) {
+    cli::cli_abort("Export object missing required elements: {.val {missing}}")
+  }
+
+  # Validate microdata structure
+  req_cols <- c("direction", "noise_multiplier")
+  missing_cols <- setdiff(req_cols, names(export_data$microdata))
+  if (length(missing_cols) > 0) {
+    cli::cli_abort("Microdata missing columns: {.val {missing_cols}}")
+  }
+
+  # Validate direction values
+  if (!all(export_data$microdata$direction %in% c(1, -1))) {
+    cli::cli_abort(
+      "Exported microdata has invalid direction values (must be 1 or -1)"
+    )
+  }
+
+  # Validate direction_rebalanced values (if present)
+  if ("direction_rebalanced" %in% names(export_data$microdata)) {
+    if (
+      !all(export_data$microdata$direction_rebalanced %in% c(1, -1))
+    ) {
+      cli::cli_abort(
+        "Exported microdata has invalid direction_rebalanced values (must be 1 or -1)"
+      )
+    }
+  }
+
+  # Validate noise_multiplier
+  if (any(export_data$microdata$noise_multiplier < 0)) {
+    cli::cli_abort("Exported microdata has negative noise_multiplier values")
+  }
+
+  return(invisible(TRUE))
+}
+
+# Internal helper: Compute cell-level sensitivity from microdata
+# Handles both n_threshold-only and dominance rules
+# Returns data.table with (strID, is_sens_<target_var>)
+.compute_cell_sensitivity <- function(
+  microdata,
+  sensitive_params,
+  target_var,
+  n_threads = 1L
+) {
+  sens_col <- paste0("is_sens_", target_var)
+
+  # Check if we have strID in microdata
+  if (!"strID" %in% names(microdata)) {
+    cli::cli_abort(
+      "{.arg microdata} must contain {.field strID} column."
+    )
+  }
+
+  # Fast-path for n_threshold only (no dominance rules)
+  is_only_n <- (is.null(sensitive_params$p_rule) ||
+    sensitive_params$p_rule == 0) &&
+    (is.null(sensitive_params$nk_rule$n) || sensitive_params$nk_rule$n == 0)
+
+  if (is_only_n) {
+    n_thresh <- as.integer(sensitive_params$n_threshold %||% 0)
+    # Count observations per strID (this is n_obs for each cell)
+    cell_counts <- microdata[, .(n_obs = .N), by = strID]
+    # Mark sensitive cells: n_obs <= n_threshold means sensitive
+    cell_counts[, (sens_col) := n_obs <= n_thresh]
+    return(cell_counts)
+  }
+
+  # Full sensitivity checking with dominance rules
+  # Sort by strID and target_var (descending within each cell)
+  setorderv(microdata, c("strID", target_var), c(1, -1))
+  group_starts <- which(!duplicated(microdata$strID)) - 1
+
+  # Compute sensitivity at record level
+  is_sens_vec <- check_sensitivity_cpp(
+    vals = microdata[[target_var]],
+    ids = microdata$strID,
+    group_starts = group_starts,
+    n_threshold = as.integer(sensitive_params$n_threshold %||% 0),
+    p_rule = as.double(sensitive_params$p_rule %||% 0),
+    nk_n = as.integer(sensitive_params$nk_rule$n %||% 0),
+    nk_k = as.double(sensitive_params$nk_rule$k %||% 0),
+    n_threads = as.integer(n_threads)
+  )
+
+  # Add sensitivity flag to microdata
+  microdata[, (sens_col) := is_sens_vec]
+
+  # Aggregate to cell level: cell is sensitive if any record is sensitive
+  sens_lookup <- microdata[, .(strID, is_sens = any(get(sens_col))), by = strID]
+  setnames(sens_lookup, "is_sens", sens_col)
+
+  return(sens_lookup)
+}
+
+# Internal helper: Identify base cells (leaf nodes) in a hierarchy
+# Returns data.table with (strID, is_base_cell)
+.identify_base_cells <- function(prob_object, dim_names, data_summary) {
+  struct_mapping <- data_summary[, .SD, .SDcols = c(dim_names, "strID")]
+
+  min_info <- lapply(prob_object@dimInfo@dimInfo, function(x) {
+    data.table(
+      code = slot(x, "codesOriginal"),
+      is_minimal = slot(x, "codesMinimal")
+    )
+  })
+
+  is_base_dt <- copy(struct_mapping)
+  for (d in dim_names) {
+    is_base_dt <- merge(
+      is_base_dt,
+      min_info[[d]],
+      by.x = d,
+      by.y = "code",
+      all.x = TRUE
+    )
+    setnames(is_base_dt, "is_minimal", paste0("is_min_", d))
+  }
+
+  min_cols <- paste0("is_min_", dim_names)
+  is_base_dt[,
+    is_base_cell := rowSums(.SD == TRUE) == length(dim_names),
+    .SDcols = min_cols
+  ]
+
+  return(is_base_dt[, .(strID, is_base_cell)])
+}
+
+# Internal helper: Compute sensitivity for all records
+# Extracted from $perturb() method
+# DEPRECATED: Use .compute_cell_sensitivity() instead
+.compute_sensitivity <- function(data, sensitive_params, n_threads = 1L) {
+  # Fast-path for n_threshold only (no dominance rules)
+  is_only_n <- (is.null(sensitive_params$p_rule) ||
+    sensitive_params$p_rule == 0) &&
+    (is.null(sensitive_params$nk_rule$n) || sensitive_params$nk_rule$n == 0)
+
+  if (is_only_n) {
+    n_thresh <- as.integer(sensitive_params$n_threshold %||% 0)
+    # Returns logical vector
+    return(data$n_obs <= n_thresh)
+  }
+
+  # Full sensitivity checking with dominance rules
+  setorderv(data, c("strID", "vals"), c(1, -1))
+  group_starts <- which(!duplicated(data$strID)) - 1
+
+  is_sens <- check_sensitivity_cpp(
+    vals = data$vals,
+    ids = data$strID,
+    group_starts = group_starts,
+    n_threshold = as.integer(sensitive_params$n_threshold %||% 0),
+    p_rule = as.double(sensitive_params$p_rule %||% 0),
+    nk_n = as.integer(sensitive_params$nk_rule$n %||% 0),
+    nk_k = as.double(sensitive_params$nk_rule$k %||% 0),
+    n_threads = as.integer(n_threads)
+  )
+
+  return(is_sens)
+}
+
+# Internal helper: Rebalance a single cell
+# Extracted from private$rebalance() method
+# Returns a list with perturbed values and the exact directions used
+.rebalance_cell <- function(cell_data, target_var, is_sensitive) {
+  n_obs <- nrow(cell_data)
+  v_dt <- cell_data[, .(
+    orig = .SD[[target_var]],
+    mult = noise_multiplier,
+    dirs = direction_rebalanced # Use rebalanced directions
+  )]
+  v_dt[, original_idx := .I]
+  v_dt[, impact := abs(orig * mult)]
+  setorder(v_dt, -impact) # Sort descending by impact
+
+  orig <- v_dt$orig
+  mult <- v_dt$mult
+  dirs <- v_dt$dirs
+
+  pert <- numeric(n_obs)
+  d_used <- numeric(n_obs)
+
+  # First record: apply perturbation with its direction
+  d_used[1] <- dirs[1]
+  pert[1] <- orig[1] * (1 + (d_used[1] * mult[1]))
+  running_noise <- pert[1] - orig[1]
+
+  if (n_obs > 1) {
+    for (i in 2:n_obs) {
+      # If sensitive: use fixed direction. Otherwise: minimize running noise.
+      d_opt <- if (!is_sensitive) {
+        if (
+          abs(running_noise + (orig[i] * mult[i])) <
+            abs(running_noise - (orig[i] * mult[i]))
+        ) {
+          1
+        } else {
+          -1
+        }
+      } else {
+        dirs[i]
+      }
+      d_used[i] <- d_opt
+      pert[i] <- orig[i] * (1 + (d_opt * mult[i]))
+      running_noise <- running_noise + (pert[i] - orig[i])
+    }
+  }
+
+  v_dt$pert_val <- pert
+  v_dt$dir_used <- d_used
+  setorder(v_dt, original_idx)
+  return(list(pert_val = v_dt$pert_val, dir = v_dt$dir_used))
+}
+
+# Internal helper: Full rebalancing workflow
+# Main helper function that performs rebalancing and returns updated data
+.perform_ezs_rebalancing <- function(
+  data,
+  dimList,
+  numVars,
+  sensitive_params,
+  n_threads = 1L
+) {
+  # Create structural mapping using sdcTable
+  prob_object <- sdcTable::makeProblem(
+    data = data,
+    dimList = dimList,
+    numVarInd = numVars
+  )
+
+  # Extract the table skeleton
+  data_summary <- as.data.table(
+    sdcProb2df(
+      prob_object,
+      addDups = TRUE,
+      addNumVars = TRUE,
+      dimCodes = "original"
+    )
+  )
+  setnames(data_summary, "freq", "n_obs")
+
+  dim_names <- names(dimList)
+  # Deduplicate dimension combinations to avoid Cartesian product with bogus codes
+  struct_mapping <- unique(data_summary[, .SD, .SDcols = c(dim_names, "strID")], by = dim_names)
+
+  # Identify base cells (leaf nodes) across all dimensions
+  base_cells <- .identify_base_cells(prob_object, dim_names, data_summary)
+  base_cell_ids <- base_cells[is_base_cell == TRUE, as.character(strID)]
+
+  # Join mapping back to microdata
+  data <- merge(data, struct_mapping, by = dim_names, all.x = TRUE)
+  data[, strID := as.character(strID)]
+
+  # Compute sensitivity using microdata (handles both n_threshold and dominance rules)
+  sens_lookup <- .compute_cell_sensitivity(
+    microdata = data,
+    sensitive_params = sensitive_params,
+    target_var = numVars[1],
+    n_threads = n_threads
+  )
+
+  # Only base cells can trigger rebalancing; aggregates are excluded
+  sens_lookup[!(strID %in% base_cell_ids), is_sens := FALSE]
+  setnames(sens_lookup, "is_sens", paste0("is_sens_", numVars[1]))
+
+  # Perform rebalancing for each base cell
+  # Create a copy to store direction_rebalanced
+  data[, direction_rebalanced := direction] # Initialize with original directions
+
+  if (length(base_cell_ids) > 0) {
+    # For each base cell, apply rebalancing
+    base_data <- copy(data[strID %in% base_cell_ids])
+
+    # Get sensitivity status for each base cell
+    sens_col_name <- paste0("is_sens_", numVars[1])
+    base_sens <- sens_lookup[
+      strID %in% base_cell_ids,
+      .(strID, is_sens = get(sens_col_name))
+    ]
+
+    # Apply rebalancing cell by cell
+    for (cell_id in base_cell_ids) {
+      cell_rows <- base_data[strID == cell_id]
+      cell_is_sens <- base_sens[strID == cell_id, is_sens]
+
+      # Rebalance this cell and take the exact directions that were used
+      # (avoiding numerically unstable back-solving from perturbed values)
+      cell_res <- .rebalance_cell(cell_rows, numVars[1], cell_is_sens)
+
+      # Store in main data table using record_id for safety
+      data[
+        record_id %in% cell_rows$record_id,
+        direction_rebalanced := cell_res$dir
+      ]
+    }
+  }
+
+  # Hard gate: rebalanced directions must be exactly -1 or +1
+  # (NA, NaN and Inf fail %in% and are caught here as well)
+  bad_dir <- !data$direction_rebalanced %in% c(1, -1)
+  if (any(bad_dir)) {
+    offenders <- unique(data$direction_rebalanced[bad_dir])
+    cli::cli_abort(c(
+      "x" = "Rebalancing produced invalid {.val direction_rebalanced} values.",
+      "i" = "{sum(bad_dir)} record(s) with NA/NaN or non-integerish directions.",
+      "!" = "Offending values: {.val {offenders[1:min(3, length(offenders))]}}"
+    ))
+  }
+  data[, direction_rebalanced := as.integer(direction_rebalanced)]
+
+  return(data)
+}

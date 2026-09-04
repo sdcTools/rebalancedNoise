@@ -6,6 +6,14 @@ import(data.table)
 import(progress)
 import(sdcTable)
 importFrom(Rcpp,sourceCpp)
+importFrom(data.table,
+  as.data.table,
+  copy,
+  data.table,
+  setkey,
+  setnames,
+  setorder
+)
 importFrom(parallel,detectCores)
 importFrom(sdcHierarchies,hier_create)
 useDynLib(rebalancedNoise, .registration = TRUE)

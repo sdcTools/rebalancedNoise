@@ -1,3 +1,23 @@
+# rebalancedNoise 0.2.0
+
+## New Features
+- New `round` argument in `$perturb()` (default `FALSE`): rounds perturbed microdata values with `round()` before tabulation so all published cell values are whole numbers
+- `$export()` method: Save rebalanced state and results to RDS file or export object
+- `rn_setup()` auto-detection: Import from export objects or file paths
+- `$get_microdata()`: Extract microdata with direction columns and noise multipliers
+- `$list_tables()`: List all perturbed tables with dimensions and variables
+
+## Documentation
+- Vignette sections on export/import workflow and utility methods
+
+## Bug Fixes
+- `direction_rebalanced` is now guaranteed to be strictly integer (`-1`/`+1`): directions are taken from the balancing algorithm instead of being back-solved from perturbed values, which previously produced `NaN` for zero values or zero noise multipliers and floating-point drift
+- `$rebalance()` aborts with a clear error if any rebalanced direction is invalid (NA/NaN/Inf/non-integer)
+- Import validation now also checks `direction_rebalanced` values in export objects
+
+## Testing
+- Implemented some unit-tests
+
 # rebalancedNoise 0.1.1
 - Initial ordering in `$rebalance()` is now based on impact (`abs(orig * mult)`)
 

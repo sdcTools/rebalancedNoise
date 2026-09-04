@@ -1,67 +1,15 @@
-#' Perturbative Statistical Disclosure Control (EZS Method)
+#' Initialize rebalancedNoise SDC Engine
 #'
 #' @description
-#' The `rn_setup` function and the `rebalancedNoise` class provide the
-#' framework for applying the **EZS perturbation method** to magnitude tables as
-#' described in the paper
-#' [Using Perturbative Methods for Magnitude Tables in Statistical Disclosure Control.](https://unece.org/sites/default/files/2025-10/SDC2025_Sf_Sweden_Almberg_D.pdf)
-#' by Sabolová, R., Tepe, Ö., Adriansson, N., & Almberg, L.-E. (2025).
-#'
-#' This approach applies record-level noise with a dynamic rebalancing algorithm
-#' to preserve data quality in non-sensitive cells while ensuring additive
-#' consistency within a table hierarchy.
-#'
-#' @param data A `data.table` or `data.frame` containing microdata.
-#' @param dim_list A named list of hierarchies (e.g., created via `sdcHierarchies`).
-#' @param num_vars A character vector of numerical variables to be perturbed.
-#' @param sensitive_params A list of SDC rules. Supported elements:
-#'   * `n_threshold`: Minimum number of observations (default: 3).
-#'   * `p_rule`: The p-percent rule value.
-#'   * `nk_rule`: A list with `n` and `k` for dominance rules.
-#' @param n_threads Integer specifying the number of threads for C++ OpenMP
-#'   parallelization used for the rebalancing procedure.
-#'   If `NULL`, the engine resolves the thread count in the following priority:
-#'   1. `options("rn_threads")`
-#'   2. `Sys.getenv("rn_threads")`
-#'   3. Fallback: `max(1, parallel::detectCores() - 1)`.
-#' @details
-#' The EZS method functions in two stages:
-#'
-#' 1. **Initial Perturbation:** Each record is assigned a fixed noise multiplier
-#'    and a direction (+1/-1) based on a permanent random number or hash.
-#' 2. **Dynamic Rebalancing:** In non-sensitive cells (those not flagged by
-#'    dominance or threshold rules), the directions of records are adjusted
-#'    to minimize the "running noise total," effectively "balancing" the
-#'    perturbation towards the original cell total.
-#'
-#' For sensitive cells, rebalancing is disabled to ensure the protection
-#' level remains at the intended fixed noise level.
-#'
-#' @section Methods:
-#' ### `perturb(var, force = FALSE)`
-#' Runs the EZS perturbation algorithm on the numerical variable `var`.
-#'
-#' ### `get_results(target_var = NULL, format = "wide")`
-#' Retrieves aggregated results.
-#' * format **"wide"**: Each row is a cell; columns are prefixed with the variable name.
-#' * format **"long"**: Standardized names (`val_orig`, `val_pert`) with a `variable` column.
-#' * Metadata: Includes `is_internal` (non-aggregate/internal cell) and `is_sens` (sensitivity flag).
-#' * Deviations `{var}_diff_init_pct` and `{var}_diff_final_pct` are rounded to 3 digits.
-#'
-#' ### `summarize(target_var)`
-#' Performs a statistical diagnostic of the perturbation impact for `target_var`.
-#'
-#' The output is divided into three groups:
-#' * **OVERALL**: Performance across the entire table.
-#' * **NON-SENSITIVE**: Efficiency metrics for cells subject to rebalancing.
-#' * **SENSITIVE**: Protection metrics for cells with fixed noise.
-#'
-#' For each group, it displays:
-#' * **Key Metrics**: nrCells, Mean Absolute Percentage Error (MAPE), Initial MAPE, and Noise Reduction (%).
-#' * **Percentiles**: Detailed distribution (Min to Max) for Relative (%) and Absolute (Units)
-#'   deviations. For rebalanced groups, a *"Before vs. After"* comparison of
-#'   the relative distributions to visualize the "shrinking" effect of the algorithm is shown.
-#'
+#' Initialize the SDC engine. No hierarchy definition needed at setup.
+#' @param data Input microdata containing `direction` and `noise_multiplier` columns.
+#'   Alternatively, can be a file path to an exported `rebalancedNoise_ExportData` object
+#'   or an export object itself for reusing previously rebalanced microdata.
+#' @param sensitive_params List of SDC rules (e.g., `list(n_threshold = 3, p_rule = 10)`).
+#'   If `data` is an export object, this will be overridden by the exported value.
+#' @param n_threads Integer specifying threads for parallel sensitivity checking and rebalancing.
+#'   Supports `options(rn_threads = X)` or `Sys.setenv(rn_threads = X)`.
+
 #' @return
 #' * `rn_setup()`: Returns a new `rebalancedNoise` R6 object.
 #' * `rebalancedNoise`: An `R6` class object (accessible via `rn_setup`).
@@ -75,7 +23,6 @@
 #' October 15–17, 2025, Barcelona, Spain.
 #' [PDF Link](https://unece.org/sites/default/files/2025-10/SDC2025_Sf_Sweden_Almberg_D.pdf)
 #' @examples
-#' \dontrun{
 #' # Optional: Disable logging
 #' Sys.setenv(SDC_LOG_LEVEL = "OFF")
 #'
@@ -87,106 +34,149 @@
 #' N <- 100
 #' countries <- c("AT", "DE", "NL", "SE", "FR", "IT")
 #' set.seed(1)
-#' dt <- data.table(
+#' dt <- data.table::data.table(
 #'   country = sample(countries, N, replace = TRUE),
 #'   turnover = runif(N, 10, 1000),
+#'   workers = sample(0:50, N, replace = TRUE),
 #'   direction = sample(c(1, -1), N, replace = TRUE),
 #'   noise_multiplier = 0.05
 #' )
 #'
-#' # Define simple hierarchy
-#' dims <- list(
-#'   country = sdcHierarchies::hier_create("Total", nodes = countries)
+#' # Define hierarchies
+#' dims_rebalance <- list(
+#'   country = sdcHierarchies::hier_create("Total", nodes = countries)  # Detailed
+#' )
+#' dims_table <- list(
+#'   country = sdcHierarchies::hier_create("Total", nodes = countries)  # Aggregated
 #' )
 #'
-#' # Initialize the object
+#' # Initialize the object (no num_vars needed!)
 #' # Note that setting Argument `n_threads` overrides previously set global settings
 #' sdc <- rn_setup(
 #'   data = dt,
-#'   dim_list = dims,
-#'   num_vars = "turnover",
 #'   sensitive_params  = list(n_threshold = 15),
 #'   n_threads = 3
 #' )
+#'
+#' # Perform rebalancing ONCE on detailed structure (specify variable here)
+#' sdc$rebalance(dim_list = dims_rebalance, num_var = "turnover")
+#'
+#' # Get microdata (without internal record_id)
+#' microdata <- sdc$get_microdata()
+#'
+#' # Get microdata with internal record_id
+#' microdata_with_id <- sdc$get_microdata(include_record_id = TRUE)
 #'
 #' # To re-enable logging, set the level back to "INFO"
 #' # This will show cli alerts and progress bars again
 #' Sys.setenv(SDC_LOG_LEVEL = "INFO")
 #'
-#' # Run Perturbation
-#' sdc$perturb("turnover")
+#' # Run Perturbation for different table structures
+#' # Single variable
+#' sdc$perturb(dim_list = dims_table, variables = "turnover", name = "table_a")
+#'
+#' # Multiple variables in one call
+#' sdc$perturb(dim_list = dims_table, variables = c("turnover", "workers"), name = "table_b")
+#'
+#' # Round perturbed values to whole numbers so all published cells are integers
+#' sdc$perturb(
+#'   dim_list = dims_table, variables = "turnover",
+#'   name = "table_rounded", round = TRUE
+#' )
+#'
+#' # List all perturbed tables
+#' tables <- sdc$list_tables()
 #'
 #' # Retrieve Results (per default: wide-format)
-#' sdc$get_results("turnover")
+#' sdc$get_results("table_a")
 #'
 #' # Long-Format is possible too
-#' res <- sdc$get_results("turnover", format = "long")
+#' res <- sdc$get_results("table_a", format = "long")
 #'
-#' # Subset to aggregate results (marginal totals)
-#' res[is_internal == FALSE]
-#'
-#' # Get only internal cells that were sensitive
-#' res[is_internal == TRUE & is_sens == TRUE]
+#' # Get all results as named list
+#' sdc$get_results()
 #'
 #' # Summarize results
-#' sdc$summarize("turnover")
-#' }
-rn_setup <- function(data, dim_list, num_vars, sensitive_params = list(n_threshold = 3),  n_threads = NULL) {
-  # Sanity Checks
-  # Check data type
-  if (!is.data.frame(data)) {
-    cli::cli_abort("{.arg data} must be a data.frame or data.table, not {.cls {class(data)}}.")
+#' sdc$summarize(table = "table_a", target_vars = "turnover")
+rn_setup <- function(
+  data,
+  sensitive_params = list(n_threshold = 3),
+  n_threads = NULL
+) {
+  # Check if data is a file path (auto-import)
+  if (is.character(data) && length(data) == 1 && file.exists(data)) {
+    export_data <- readRDS(data)
+    if (!inherits(export_data, "rebalancedNoise_ExportData")) {
+      cli::cli_abort(
+        "File does not contain valid 'rebalancedNoise_ExportData' object."
+      )
+    }
+    # Validate and use exported data
+    .validate_export_data(export_data)
+    data <- export_data$microdata
+    if (!is.null(export_data$sensitive_params)) {
+      sensitive_params <- export_data$sensitive_params
+    }
+    import_rebal_status <- export_data$rebal_status
+    import_result_tables <- export_data$result_tables
+  } else if (inherits(data, "rebalancedNoise_ExportData")) {
+    # Direct export object
+    .validate_export_data(data)
+    import_rebal_status <- data$rebal_status
+    import_result_tables <- data$result_tables
+    data <- data$microdata
+    if (!is.null(data$sensitive_params)) {
+      sensitive_params <- data$sensitive_params
+    }
+  } else {
+    # Regular data - no import status
+    import_rebal_status <- NULL
+    import_result_tables <- NULL
+    # Sanity Checks for regular data
+    # Check data type
+    if (!is.data.frame(data)) {
+      cli::cli_abort(
+        "{.arg data} must be a data.frame or data.table, not {.cls {class(data)}}."
+      )
+    }
+
+    # Check for mandatory columns in EZS (direction & noise_multiplier)
+    req_cols <- c("direction", "noise_multiplier")
+    missing_req <- setdiff(req_cols, names(data))
+    if (length(missing_req) > 0) {
+      cli::cli_abort(c(
+        "x" = "EZS method requires specific columns in the microdata:",
+        "i" = "Missing: {.val {missing_req}}",
+        "*" = "Ensure {.code direction} (1/-1) and {.code noise_multiplier} are present."
+      ))
+    }
+
+    # Check 'direction' values (must be 1 or -1)
+    dir_vals <- data[["direction"]]
+    if (!is.numeric(dir_vals) || !all(dir_vals %in% c(1, -1))) {
+      cli::cli_abort(c(
+        "x" = "Column {.code direction} contains invalid values.",
+        "i" = "Only {.val {c(1, -1)}} are allowed.",
+        "!" = "Found values like: {.val {unique(dir_vals)[1:min(3, length(unique(dir_vals)))]}}."
+      ))
+    }
+
+    # Check 'noise_multiplier' is positive
+    if (
+      !is.numeric(data[["noise_multiplier"]]) ||
+        any(data[["noise_multiplier"]] < 0)
+    ) {
+      cli::cli_abort(
+        "{.code noise_multiplier} must be a positive numeric column."
+      )
+    }
   }
 
-  # Check req. variables exist
-  missing_vars <- setdiff(num_vars, names(data))
-  if (length(missing_vars) > 0) {
-    cli::cli_abort(c(
-      "x" = "The following variables are missing from {.arg data}:",
-      "i" = "{.val {missing_vars}}"
-    ))
-  }
-
-  # Check for mandatory columns in EZS (direction & noise_multiplier)
-  req_cols <- c("direction", "noise_multiplier")
-  missing_req <- setdiff(req_cols, names(data))
-  if (length(missing_req) > 0) {
-    cli::cli_abort(c(
-      "x" = "EZS method requires specific columns in the microdata:",
-      "i" = "Missing: {.val {missing_req}}",
-      "*" = "Ensure {.code direction} (1/-1) and {.code noise_multiplier} are present."
-    ))
-  }
-
-  # Check 'direction' values (must be 1 or -1)
-  dir_vals <- data[["direction"]]
-  if (!is.numeric(dir_vals) || !all(dir_vals %in% c(1, -1))) {
-    cli::cli_abort(c(
-      "x" = "Column {.code direction} contains invalid values.",
-      "i" = "Only {.val {c(1, -1)}} are allowed.",
-      "!" = "Found values like: {.val {unique(dir_vals)[1:min(3, length(unique(dir_vals)))]}}."
-    ))
-  }
-
-  # Check 'noise_multiplier' is positive
-  if (!is.numeric(data[["noise_multiplier"]]) || any(data[["noise_multiplier"]] < 0)) {
-    cli::cli_abort("{.code noise_multiplier} must be a positive numeric column.")
-  }
-
-  # Check the hierarchy-definition
-  if (!is.list(dim_list) || is.null(names(dim_list))) {
-    cli::cli_abort("{.arg dim_list} must be a {.strong named} list of hierarchies.")
-  }
-
-  # Check hierarchy names match data
-  missing_dims <- setdiff(names(dim_list), names(data))
-  if (length(missing_dims) > 0) {
-    cli::cli_abort("Dimension {.val {missing_dims}} in {.arg dim_list} not found in {.arg data}.")
-  }
   rebalancedNoise$new(
     data = data,
-    dimList = dim_list,
-    numVars = num_vars,
-    sensitive_params = sensitive_params
+    sensitive_params = sensitive_params,
+    n_threads = n_threads,
+    import_rebal_status = import_rebal_status,
+    import_result_tables = import_result_tables
   )
 }

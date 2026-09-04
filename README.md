@@ -1,6 +1,7 @@
+
 # rebalancedNoise: Perturbative Statistical Disclosure Control for Magnitude Tables
 
-**rebalancedNoise** implements the **EZS method** for magnitude tables as described in the Paper [*Using Perturbative Methods for Magnitude Tables in Statistical Disclosure Control*](https://unece.org/sites/default/files/2025-10/SDC2025_Sf_Sweden_Almberg_D.pdf) from 
+**rebalancedNoise** implements the **EZS method** for magnitude tables as described in the Paper [*Using Perturbative Methods for Magnitude Tables in Statistical Disclosure Control*](https://unece.org/sites/default/files/2025-10/SDC2025_Sf_Sweden_Almberg_D.pdf) from
 Sabolová et al. (2025). It provides a high-performance framework for applying record-level noise with a dynamic rebalancing algorithm that preserves data quality in non-sensitive cells while ensuring additive consistency across complex hierarchies.
 
 ## Key Features
@@ -41,8 +42,8 @@ dims <- list(
 
 # Initialize the Object
 sdc <- rn_setup(
-    data = dt, 
-    dim_list = dims, 
+    data = dt,
+    dim_list = dims,
     num_vars = c("turnover"),
     sensitive_params = list(n_threshold = 5)
 )

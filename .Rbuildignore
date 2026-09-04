@@ -8,3 +8,6 @@
 ^pkgdown$
 ^\.github$
 ^\.vscode
+^\.vscode$
+rebalanced_data.rds
+^air\.toml$
