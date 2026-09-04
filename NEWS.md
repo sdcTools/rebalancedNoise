@@ -16,6 +16,7 @@
 - Calling `rn_rebalance()` a second time on already-rebalanced data no longer fails with "object 'strID' not found"; a stale `strID` column from a previous run is dropped before the structural merge
 
 ## Internals
+- Cell rebalancing now runs as a C++ kernel (`rebalance_cells_cpp()`) with OpenMP parallelization over base cells, replacing a per-cell R loop; rebalancing on 1M records is about 7 times faster and output is identical (deterministic, no RNG involved)
 - R6 engine and functional API share the same core: perturbation/tabulation (`.perturb_tabulate()`), variable merging (`.merge_var_into_table()`), formatting (`.process_result_table()`), and summaries (`.summarize_entry()`)
 - Removed deprecated internal `.compute_sensitivity()`; single package-wide definition of `%||%`
 

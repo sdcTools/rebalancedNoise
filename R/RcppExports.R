@@ -5,3 +5,7 @@ check_sensitivity_cpp <- function(vals, ids, group_starts, n_threshold, p_rule, 
     .Call(`_rebalancedNoise_check_sensitivity_cpp`, vals, ids, group_starts, n_threshold, p_rule, nk_n, nk_k, n_threads)
 }
 
+rebalance_cells_cpp <- function(orig, mult, dirs, is_sens_by_cell, group_starts, n_threads) {
+    .Call(`_rebalancedNoise_rebalance_cells_cpp`, orig, mult, dirs, is_sens_by_cell, group_starts, n_threads)
+}
+

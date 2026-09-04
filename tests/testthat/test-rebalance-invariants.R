@@ -57,33 +57,6 @@ test_that("rebalancing handles zero values and zero noise_multiplier without NaN
   expect_false(any(is.nan(res$turnover_pert)))
 })
 
-test_that(".rebalance_cell returns exact +/-1 directions", {
-  cell <- data.table(
-    orig = c(100, 200, 50),
-    noise_multiplier = c(0.05, 0.05, 0.05),
-    direction_rebalanced = c(1, -1, 1)
-  )
-  res <- rebalancedNoise:::.rebalance_cell(cell, "orig", is_sensitive = FALSE)
-
-  expect_type(res$dir, "double")
-  expect_true(all(res$dir %in% c(1, -1)))
-  expect_length(res$dir, 3)
-  expect_length(res$pert_val, 3)
-})
-
-test_that(".rebalance_cell keeps cell sum balanced for non-sensitive cells", {
-  cell <- data.table(
-    orig = c(100, 200, 50, 300),
-    noise_multiplier = rep(0.1, 4),
-    direction_rebalanced = rep(1, 4)
-  )
-  res <- rebalancedNoise:::.rebalance_cell(cell, "orig", is_sensitive = FALSE)
-
-  noise <- sum(res$pert_val - cell$orig)
-  # Greedy balancing bounds residual noise by the smallest impact
-  expect_lte(abs(noise), min(cell$orig * cell$noise_multiplier))
-})
-
 test_that("import rejects export with corrupt direction_rebalanced", {
   dt <- create_test_data()
   dims <- create_dims()

@@ -28,9 +28,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rebalance_cells_cpp
+NumericVector rebalance_cells_cpp(NumericVector orig, NumericVector mult, NumericVector dirs, LogicalVector is_sens_by_cell, IntegerVector group_starts, int n_threads);
+RcppExport SEXP _rebalancedNoise_rebalance_cells_cpp(SEXP origSEXP, SEXP multSEXP, SEXP dirsSEXP, SEXP is_sens_by_cellSEXP, SEXP group_startsSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type orig(origSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mult(multSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dirs(dirsSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type is_sens_by_cell(is_sens_by_cellSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type group_starts(group_startsSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(rebalance_cells_cpp(orig, mult, dirs, is_sens_by_cell, group_starts, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rebalancedNoise_check_sensitivity_cpp", (DL_FUNC) &_rebalancedNoise_check_sensitivity_cpp, 8},
+    {"_rebalancedNoise_rebalance_cells_cpp", (DL_FUNC) &_rebalancedNoise_rebalance_cells_cpp, 6},
     {NULL, NULL, 0}
 };
 

@@ -127,7 +127,7 @@ NULL
   # Compute sensitivity at record level
   is_sens_vec <- check_sensitivity_cpp(
     vals = microdata[[target_var]],
-    ids = microdata$strID,
+    ids = as.character(microdata$strID),
     group_starts = group_starts,
     n_threshold = as.integer(sensitive_params$n_threshold %||% 0),
     p_rule = as.double(sensitive_params$p_rule %||% 0),
@@ -179,59 +179,6 @@ NULL
   return(is_base_dt[, .(strID, is_base_cell)])
 }
 
-# Internal helper: Rebalance a single cell
-# Extracted from private$rebalance() method
-# Returns a list with perturbed values and the exact directions used
-.rebalance_cell <- function(cell_data, target_var, is_sensitive) {
-  n_obs <- nrow(cell_data)
-  v_dt <- cell_data[, .(
-    orig = .SD[[target_var]],
-    mult = noise_multiplier,
-    dirs = direction_rebalanced # Use rebalanced directions
-  )]
-  v_dt[, original_idx := .I]
-  v_dt[, impact := abs(orig * mult)]
-  setorder(v_dt, -impact) # Sort descending by impact
-
-  orig <- v_dt$orig
-  mult <- v_dt$mult
-  dirs <- v_dt$dirs
-
-  pert <- numeric(n_obs)
-  d_used <- numeric(n_obs)
-
-  # First record: apply perturbation with its direction
-  d_used[1] <- dirs[1]
-  pert[1] <- orig[1] * (1 + (d_used[1] * mult[1]))
-  running_noise <- pert[1] - orig[1]
-
-  if (n_obs > 1) {
-    for (i in 2:n_obs) {
-      # If sensitive: use fixed direction. Otherwise: minimize running noise.
-      d_opt <- if (!is_sensitive) {
-        if (
-          abs(running_noise + (orig[i] * mult[i])) <
-            abs(running_noise - (orig[i] * mult[i]))
-        ) {
-          1
-        } else {
-          -1
-        }
-      } else {
-        dirs[i]
-      }
-      d_used[i] <- d_opt
-      pert[i] <- orig[i] * (1 + (d_opt * mult[i]))
-      running_noise <- running_noise + (pert[i] - orig[i])
-    }
-  }
-
-  v_dt$pert_val <- pert
-  v_dt$dir_used <- d_used
-  setorder(v_dt, original_idx)
-  return(list(pert_val = v_dt$pert_val, dir = v_dt$dir_used))
-}
-
 # Internal helper: Full rebalancing workflow
 # Main helper function that performs rebalancing and returns updated data
 .perform_ezs_rebalancing <- function(
@@ -265,7 +212,7 @@ NULL
 
   # Identify base cells (leaf nodes) across all dimensions
   base_cells <- .identify_base_cells(prob_object, dim_names, data_summary)
-  base_cell_ids <- base_cells[is_base_cell == TRUE, as.character(strID)]
+  base_cell_ids <- base_cells[is_base_cell == TRUE, as.integer(strID)]
 
   # Join mapping back to microdata (drop stale strID from a previous run,
   # e.g. when rebalancing is performed again on already-rebalanced microdata)
@@ -273,7 +220,9 @@ NULL
     data[, strID := NULL]
   }
   data <- merge(data, struct_mapping, by = dim_names, all.x = TRUE)
-  data[, strID := as.character(strID)]
+  # Keep strID integer for fast grouping during rebalancing; the character
+  # representation is restored at the end of this function
+  data[, strID := as.integer(strID)]
 
   # Compute sensitivity using microdata (handles both n_threshold and dominance rules)
   sens_lookup <- .compute_cell_sensitivity(
@@ -287,37 +236,51 @@ NULL
   sens_lookup[!(strID %in% base_cell_ids), is_sens := FALSE]
   setnames(sens_lookup, "is_sens", paste0("is_sens_", numVars[1]))
 
-  # Perform rebalancing for each base cell
-  # Create a copy to store direction_rebalanced
-  data[, direction_rebalanced := direction] # Initialize with original directions
+  # Rebalance all base cells in one vectorized pass (C++ kernel, OpenMP)
+  data[, direction_rebalanced := as.double(direction)] # Original directions
 
   if (length(base_cell_ids) > 0) {
-    # For each base cell, apply rebalancing
-    base_data <- copy(data[strID %in% base_cell_ids])
-
-    # Get sensitivity status for each base cell
     sens_col_name <- paste0("is_sens_", numVars[1])
     base_sens <- sens_lookup[
       strID %in% base_cell_ids,
       .(strID, is_sens = get(sens_col_name))
     ]
 
-    # Apply rebalancing cell by cell
-    for (cell_id in base_cell_ids) {
-      cell_rows <- base_data[strID == cell_id]
-      cell_is_sens <- base_sens[strID == cell_id, is_sens]
+    # Group base-cell records by strID via positional indexing (no row
+    # copy); group_starts follows the convention of check_sensitivity_cpp()
+    base_idx <- which(data$strID %in% base_cell_ids)
+    sids <- data$strID[base_idx]
+    ord <- order(sids)
+    sids_sorted <- sids[ord]
+    group_starts <- which(!duplicated(sids_sorted)) - 1L
+    group_ids <- sids_sorted[group_starts + 1L]
 
-      # Rebalance this cell and take the exact directions that were used
-      # (avoiding numerically unstable back-solving from perturbed values)
-      cell_res <- .rebalance_cell(cell_rows, numVars[1], cell_is_sens)
-
-      # Store in main data table using record_id for safety
-      data[
-        record_id %in% cell_rows$record_id,
-        direction_rebalanced := cell_res$dir
-      ]
+    cell_is_sens <- base_sens$is_sens[match(group_ids, base_sens$strID)]
+    if (any(is.na(cell_is_sens))) {
+      cli::cli_abort(c(
+        "x" = "Sensitivity status missing for one or more base cells.",
+        "i" = "{sum(is.na(cell_is_sens))} base cell(s) have no sensitivity entry."
+      ))
     }
+
+    sub_idx <- base_idx[ord]
+    dir_sorted <- rebalance_cells_cpp(
+      orig = as.double(data[[numVars[1]]][sub_idx]),
+      mult = as.double(data$noise_multiplier[sub_idx]),
+      dirs = as.double(data$direction_rebalanced[sub_idx]),
+      is_sens_by_cell = cell_is_sens,
+      group_starts = as.integer(group_starts),
+      n_threads = as.integer(n_threads)
+    )
+
+    # Undo the sorting permutation and write back by row position
+    new_dirs <- rep_len(data$direction_rebalanced[base_idx], length(ord))
+    new_dirs[ord] <- dir_sorted
+    data[base_idx, direction_rebalanced := new_dirs]
   }
+
+  # Restore the character strID representation used by the public API
+  data[, strID := as.character(strID)]
 
   # Hard gate: rebalanced directions must be exactly -1 or +1
   # (NA, NaN and Inf fail %in% and are caught here as well)
