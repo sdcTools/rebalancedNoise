@@ -127,6 +127,12 @@
   }
 }
 
+.rn_log_warning <- function(msg, envir = parent.frame()) {
+  if (Sys.getenv("SDC_LOG_LEVEL") != "OFF") {
+    cli::cli_alert_warning(msg, .envir = envir)
+  }
+}
+
 # Print methods -------------------------------------------------------------------
 
 #' @export
@@ -140,16 +146,18 @@ print.rn_initialized <- function(x, ...) {
     length(names(x$microdata)),
     " columns"
   )
-  cli::cat_line(
-    "  sensitive_params: ",
+  sp <- x$sensitive_params
+  sp_txt <- if (length(sp) == 0) {
+    "none"
+  } else {
     paste(
-      names(x$sensitive_params),
-      sapply(x$sensitive_params, function(v) paste(v, collapse = ",")),
+      names(sp),
+      sapply(sp, function(v) paste(v, collapse = ",")),
       sep = " = ",
       collapse = ", "
-    ) %||%
-      "none"
-  )
+    )
+  }
+  cli::cat_line("  sensitive_params: ", sp_txt)
   cli::cat_line("  n_threads: ", x$n_threads)
   cli::cat_line(
     "  rebalanced: ",
@@ -170,10 +178,12 @@ print.rn_rebalanced <- function(x, ...) {
     " columns"
   )
   cli::cat_line("  num_var: ", x$meta$num_var %||% "<unknown>")
-  cli::cat_line(
-    "  dim_list: ",
-    paste(names(x$meta$dim_list), collapse = " x ") %||% "<unknown>"
-  )
+  dim_txt <- if (length(x$meta$dim_list) == 0) {
+    "<unknown>"
+  } else {
+    paste(names(x$meta$dim_list), collapse = " x ")
+  }
+  cli::cat_line("  dim_list: ", dim_txt)
   cli::cat_line("  n_threads: ", x$meta$n_threads)
   invisible(x)
 }
@@ -212,7 +222,9 @@ print.rn_perturbed <- function(x, ...) {
 #' @method as.data.table rn_initialized
 as.data.table.rn_initialized <- function(x, ...) {
   dt <- copy(x$microdata)
-  dt[, record_id := NULL]
+  if ("record_id" %in% names(dt)) {
+    dt[, record_id := NULL]
+  }
   dt
 }
 

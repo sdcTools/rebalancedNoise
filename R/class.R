@@ -103,7 +103,8 @@ rebalancedNoise <- R6Class(
       private$rebal_status <- list(
         done = FALSE,
         dim_list = NULL,
-        params = NULL
+        params = NULL,
+        num_var = NULL
       )
       private$result_tables <- list()
       private$pert_status <- list()
@@ -217,62 +218,35 @@ rebalancedNoise <- R6Class(
             base_cells = base_cells[, .(strID, is_base_cell)],
             variables = list()
           )
-          result_entry$variables[[tv]] <- list(
-            sensitive_params = curr_params,
-            is_sens_col = sens_col_name
-          )
-        } else {
-          # Merge new columns into existing table
-          private$result_tables[[name]]$table <- .merge_var_into_table(
-            existing_table = private$result_tables[[name]]$table,
-            full_res = full_res,
-            dim_names = dim_names,
-            cols_to_add = c(tv, init_name, p_name, sens_col_name),
-            reorder = FALSE
-          )
-
-          # Add variable to metadata
-          private$result_tables[[name]]$variables[[tv]] <- list(
-            sensitive_params = curr_params,
-            is_sens_col = sens_col_name
-          )
-
-          private$log_success(
-            "Added {.var {tv}} to existing table {.val {name}}."
-          )
-
-          # Update cache
-          private$pert_status[[cache_key]] <- copy(curr_cache)
-          next
         }
 
-        if (name %in% names(private$result_tables)) {
-          # Merge new columns into existing table (for first variable in multi-var call)
-          private$result_tables[[name]]$table <- .merge_var_into_table(
-            existing_table = private$result_tables[[name]]$table,
-            full_res = full_res,
-            dim_names = dim_names,
-            cols_to_add = c(tv, init_name, p_name, sens_col_name),
-            reorder = TRUE
-          )
-
-          # Add variable to metadata
-          private$result_tables[[name]]$variables[[tv]] <- list(
-            sensitive_params = curr_params,
-            is_sens_col = sens_col_name
-          )
-
-          private$log_success(
-            "Added {.var {tv}} to existing table {.val {name}}."
-          )
-        } else {
+        if (tv == variables[1] && !(name %in% names(private$result_tables))) {
           # New table - store entry
           private$result_tables[[name]] <- result_entry
 
           private$log_success(
             "Created new table {.val {name}} with variable {.var {tv}}."
           )
+        } else {
+          # Merge new columns into the existing table
+          private$result_tables[[name]]$table <- .merge_var_into_table(
+            existing_table = private$result_tables[[name]]$table,
+            full_res = full_res,
+            dim_names = dim_names,
+            cols_to_add = c(tv, init_name, p_name, sens_col_name),
+            reorder = tv == variables[1]
+          )
+
+          private$log_success(
+            "Added {.var {tv}} to existing table {.val {name}}."
+          )
         }
+
+        # Add variable to metadata
+        private$result_tables[[name]]$variables[[tv]] <- list(
+          sensitive_params = curr_params,
+          is_sens_col = sens_col_name
+        )
 
         # Update cache
         private$pert_status[[cache_key]] <- copy(curr_cache)
@@ -400,7 +374,7 @@ rebalancedNoise <- R6Class(
           cli::cli_abort("{.arg file} must be a single character string.")
         }
         saveRDS(out, file = file)
-        cli::cli_alert_success("Exported to {.path {file}}")
+        private$log_success("Exported to {.path {file}}")
         return(invisible(self))
       }
 
@@ -465,7 +439,7 @@ rebalancedNoise <- R6Class(
     #'   - `variables`: Comma-separated list of perturbed variables
     list_tables = function() {
       if (length(private$result_tables) == 0) {
-        cli::cli_alert_warning(
+        private$log_warning(
           "No perturbed tables available. Call {.fn perturb} first."
         )
         return(data.table::data.table(
@@ -492,7 +466,7 @@ rebalancedNoise <- R6Class(
   ),
 
   private = list(
-    n_threads = 1,
+    n_threads = 1L,
     .state = NULL, # rn_initialized / rn_rebalanced S3 state object
     microdata = NULL, # Stores microdata with record_id, direction, direction_rebalanced, noise_multiplier
     pert_status = list(), # Cache for perturbation status (keyed by "target_var_name")
@@ -501,7 +475,8 @@ rebalancedNoise <- R6Class(
     rebal_status = list(
       done = FALSE,
       dim_list = NULL,
-      params = NULL
+      params = NULL,
+      num_var = NULL
     ),
 
     # Store results from perturb() calls (hash-managed, as rn_perturbed objects)
@@ -512,6 +487,9 @@ rebalancedNoise <- R6Class(
     },
     log_success = function(msg) {
       .rn_log_success(msg, envir = parent.frame())
+    },
+    log_warning = function(msg) {
+      .rn_log_warning(msg, envir = parent.frame())
     }
   )
 )

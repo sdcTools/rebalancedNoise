@@ -120,30 +120,26 @@
   list(table = full_res, base_cells = base_cells[, .(strID, is_base_cell)])
 }
 
-# Internal helper: Reorder result columns as dims + meta + grouped by variable
+# Internal helper: Reorder result columns as dims + meta + grouped by variable.
+# Each variable group consists of <v>, <v>_init, <v>_pert and is_sens_<v>.
 .reorder_var_columns <- function(full_res, dim_names) {
   all_cols <- names(full_res)
-  all_vars <- unique(gsub(
-    "_init$|_pert$|_is_sens$",
-    "",
-    grep("_init$|_pert$|_is_sens$", all_cols, value = TRUE)
-  ))
+
+  # Detect variable names from the value column suffixes and the
+  # is_sens_<v> prefixes
+  all_vars <- union(
+    unique(sub("_init$|_pert$", "", grep("_init$|_pert$", all_cols, value = TRUE))),
+    unique(sub("^is_sens_", "", grep("^is_sens_", all_cols, value = TRUE)))
+  )
 
   # Build ordered column list
   ordered_cols <- c(dim_names, "n_obs", "is_internal")
   for (v in all_vars) {
-    v_cols <- grep(
-      paste0("^", v, "(_init|_pert|_is_sens)?$"),
-      all_cols,
-      value = TRUE
-    )
-    ordered_cols <- c(ordered_cols, v_cols)
+    v_cols <- c(v, paste0(v, "_init"), paste0(v, "_pert"), paste0("is_sens_", v))
+    ordered_cols <- c(ordered_cols, intersect(v_cols, all_cols))
   }
 
-  # Only reorder if we have all columns
-  if (all(ordered_cols %in% all_cols)) {
-    setcolorder(full_res, ordered_cols)
-  }
+  setcolorder(full_res, ordered_cols)
   full_res
 }
 
@@ -244,6 +240,7 @@
 #'
 #' @export
 #' @examples
+#' old_log <- Sys.getenv("SDC_LOG_LEVEL")
 #' Sys.setenv(SDC_LOG_LEVEL = "OFF")
 #' dt <- data.table::data.table(
 #'   country = sample(c("AT", "DE", "NL"), 100, replace = TRUE),
@@ -259,6 +256,7 @@
 #'   rn_rebalance(dim_list = dims, num_var = "turnover") |>
 #'   rn_perturb(dim_list = dims, variables = "turnover")
 #' data.table::as.data.table(res)
+#' Sys.setenv(SDC_LOG_LEVEL = old_log)
 rn_perturb <- function(x, dim_list, variables, round = FALSE) {
   if (inherits(x, "rn_initialized")) {
     x <- .promote_rn_rebalanced(x, call = parent.frame())

@@ -28,6 +28,7 @@
 #' [PDF Link](https://unece.org/sites/default/files/2025-10/SDC2025_Sf_Sweden_Almberg_D.pdf)
 #' @examples
 #' # Optional: Disable logging
+#' old_log <- Sys.getenv("SDC_LOG_LEVEL")
 #' Sys.setenv(SDC_LOG_LEVEL = "OFF")
 #'
 #' # Set threads via environment variable
@@ -71,10 +72,6 @@
 #' # Get microdata with internal record_id
 #' microdata_with_id <- sdc$get_microdata(include_record_id = TRUE)
 #'
-#' # To re-enable logging, set the level back to "INFO"
-#' # This will show cli alerts and progress bars again
-#' Sys.setenv(SDC_LOG_LEVEL = "INFO")
-#'
 #' # Run Perturbation for different table structures
 #' # Single variable
 #' sdc$perturb(dim_list = dims_table, variables = "turnover", name = "table_a")
@@ -107,6 +104,10 @@
 #' state <- sdc$get_state()
 #' res_s3 <- rn_perturb(state, dim_list = dims_table, variables = "workers")
 #' data.table::as.data.table(res_s3)
+#'
+#' # Restore the previous logging and thread settings
+#' Sys.setenv(SDC_LOG_LEVEL = old_log)
+#' Sys.unsetenv("rn_threads")
 rn_setup <- function(
   data,
   sensitive_params = list(n_threshold = 3),

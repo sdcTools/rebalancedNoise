@@ -23,12 +23,10 @@ Imports:
     data.table,
     sdcTable,
     cli,
-    progress,
     Rcpp,
     sdcHierarchies,
     parallel,
-    xxhashlite,
-    glue
+    xxhashlite
 LinkingTo:
     Rcpp
 SystemRequirements: GNU make

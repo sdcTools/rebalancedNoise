@@ -94,6 +94,28 @@ test_that("rn_setup imports from export object", {
   expect_equal(sdc2$sensitive_params$n_threshold, 3)
 })
 
+test_that("import from export object overrides sensitive_params with exported values", {
+  dt <- create_test_data()
+  dims <- create_dims()
+
+  # Distinct non-default parameters so an ignored override is detectable
+  params <- list(n_threshold = 7, p_rule = 90)
+  sdc1 <- rn_setup(data = dt, sensitive_params = params)
+  sdc1$rebalance(dim_list = dims, num_var = "turnover")
+  exported <- sdc1$export()
+
+  # Import without passing sensitive_params: exported values must win over
+  # the default list(n_threshold = 3)
+  sdc2 <- rn_setup(data = exported)
+  expect_equal(sdc2$sensitive_params$n_threshold, 7)
+  expect_equal(sdc2$sensitive_params$p_rule, 90)
+
+  # Same for the functional entry point
+  state <- rn_init(exported)
+  expect_equal(state$sensitive_params$n_threshold, 7)
+  expect_equal(state$sensitive_params$p_rule, 90)
+})
+
 test_that("rn_setup imports from file path", {
   dt <- create_test_data()
   dims <- create_dims()

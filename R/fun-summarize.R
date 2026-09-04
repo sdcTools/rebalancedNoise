@@ -187,6 +187,7 @@
 #'
 #' @export
 #' @examples
+#' old_log <- Sys.getenv("SDC_LOG_LEVEL")
 #' Sys.setenv(SDC_LOG_LEVEL = "OFF")
 #' dt <- data.table::data.table(
 #'   country = sample(c("AT", "DE", "NL"), 100, replace = TRUE),
@@ -202,6 +203,7 @@
 #'   rn_rebalance(dim_list = dims, num_var = "turnover") |>
 #'   rn_perturb(dim_list = dims, variables = "turnover")
 #' summary_stats <- rn_summarize(res)
+#' Sys.setenv(SDC_LOG_LEVEL = old_log)
 rn_summarize <- function(x, target_vars = NULL) {
   .assert_rn_class(
     x,

@@ -1,6 +1,3 @@
-#' @importFrom data.table data.table as.data.table copy setorder setnames
-NULL
-
 # Internal helper: Perturb using existing direction_rebalanced (no rebalancing)
 # Simple perturbation: val_pert = val_orig * (1 + direction * noise_multiplier)
 .perturb_with_direction <- function(

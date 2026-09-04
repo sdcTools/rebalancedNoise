@@ -1,6 +1,3 @@
-#' @importFrom data.table data.table as.data.table copy setorder setnames setkey
-NULL
-
 # Generate deterministic hash from dim_list, sensitive_params and rounding
 # flag for table identification
 .get_table_hash <- function(dim_list, sensitive_params = list(), round = FALSE) {
@@ -184,7 +181,7 @@ NULL
 .perform_ezs_rebalancing <- function(
   data,
   dimList,
-  numVars,
+  num_var,
   sensitive_params,
   n_threads = 1L
 ) {
@@ -192,7 +189,7 @@ NULL
   prob_object <- sdcTable::makeProblem(
     data = data,
     dimList = dimList,
-    numVarInd = numVars
+    numVarInd = num_var
   )
 
   # Extract the table skeleton
@@ -228,19 +225,16 @@ NULL
   sens_lookup <- .compute_cell_sensitivity(
     microdata = data,
     sensitive_params = sensitive_params,
-    target_var = numVars[1],
+    target_var = num_var[1],
     n_threads = n_threads
   )
-
-  # Only base cells can trigger rebalancing; aggregates are excluded
-  sens_lookup[!(strID %in% base_cell_ids), is_sens := FALSE]
-  setnames(sens_lookup, "is_sens", paste0("is_sens_", numVars[1]))
 
   # Rebalance all base cells in one vectorized pass (C++ kernel, OpenMP)
   data[, direction_rebalanced := as.double(direction)] # Original directions
 
   if (length(base_cell_ids) > 0) {
-    sens_col_name <- paste0("is_sens_", numVars[1])
+    # Only base cells can trigger rebalancing; aggregates are excluded
+    sens_col_name <- paste0("is_sens_", num_var[1])
     base_sens <- sens_lookup[
       strID %in% base_cell_ids,
       .(strID, is_sens = get(sens_col_name))
@@ -265,7 +259,7 @@ NULL
 
     sub_idx <- base_idx[ord]
     dir_sorted <- rebalance_cells_cpp(
-      orig = as.double(data[[numVars[1]]][sub_idx]),
+      orig = as.double(data[[num_var[1]]][sub_idx]),
       mult = as.double(data$noise_multiplier[sub_idx]),
       dirs = as.double(data$direction_rebalanced[sub_idx]),
       is_sens_by_cell = cell_is_sens,

@@ -26,6 +26,7 @@
 #'
 #' @export
 #' @examples
+#' old_log <- Sys.getenv("SDC_LOG_LEVEL")
 #' Sys.setenv(SDC_LOG_LEVEL = "OFF")
 #' dt <- data.table::data.table(
 #'   country = sample(c("AT", "DE", "NL"), 100, replace = TRUE),
@@ -35,6 +36,7 @@
 #' )
 #' state <- rn_init(dt, sensitive_params = list(n_threshold = 3))
 #' state
+#' Sys.setenv(SDC_LOG_LEVEL = old_log)
 rn_init <- function(
   data,
   sensitive_params = list(n_threshold = 3),
@@ -47,12 +49,20 @@ rn_init <- function(
     getOption("rn_threads") %||%
     Sys.getenv("rn_threads")
 
-  # if still NULL/empty -> fallback to parallel::detectCores()
-  if (is.null(resolved_threads) || resolved_threads == "") {
+  if (!is.null(resolved_threads) && length(resolved_threads) > 1L) {
+    cli::cli_abort("{.arg n_threads} must be a single value.")
+  }
+
+  # NULL or empty string -> fallback to parallel::detectCores()
+  if (
+    is.null(resolved_threads) ||
+      length(resolved_threads) == 0L ||
+      (!is.na(resolved_threads) && resolved_threads == "")
+  ) {
     resolved_threads <- max(1, parallel::detectCores() - 1)
   }
 
-  # validate n_threads
+  # validate n_threads (NA and non-positive values warn and fall back to 1)
   resolved_threads <- suppressWarnings(as.integer(resolved_threads))
   if (is.na(resolved_threads) || resolved_threads < 1) {
     cli::cli_warn(
@@ -83,8 +93,8 @@ rn_init <- function(
     rebal_status <- data$rebal_status
     result_tables <- data$result_tables %||% list()
     microdata <- data$microdata
-    if (!is.null(microdata$sensitive_params)) {
-      sensitive_params <- microdata$sensitive_params
+    if (!is.null(data$sensitive_params)) {
+      sensitive_params <- data$sensitive_params
     }
   } else {
     # Regular data - no import status
@@ -141,7 +151,8 @@ rn_init <- function(
     rebal_status <- list(
       done = FALSE,
       dim_list = NULL,
-      params = NULL
+      params = NULL,
+      num_var = NULL
     )
   }
 

@@ -18,6 +18,7 @@
 #'
 #' @export
 #' @examples
+#' old_log <- Sys.getenv("SDC_LOG_LEVEL")
 #' Sys.setenv(SDC_LOG_LEVEL = "OFF")
 #' dt <- data.table::data.table(
 #'   country = sample(c("AT", "DE", "NL"), 100, replace = TRUE),
@@ -31,6 +32,7 @@
 #' state <- rn_init(dt, sensitive_params = list(n_threshold = 3))
 #' rebal <- rn_rebalance(state, dim_list = dims, num_var = "turnover")
 #' rebal
+#' Sys.setenv(SDC_LOG_LEVEL = old_log)
 rn_rebalance <- function(x, dim_list, num_var) {
   if (inherits(x, "rn_rebalanced")) {
     microdata <- x$microdata
@@ -80,7 +82,7 @@ rn_rebalance <- function(x, dim_list, num_var) {
   updated_microdata <- .perform_ezs_rebalancing(
     data = microdata,
     dimList = dim_list,
-    numVars = num_var,
+    num_var = num_var,
     sensitive_params = sensitive_params,
     n_threads = n_threads
   )

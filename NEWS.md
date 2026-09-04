@@ -14,8 +14,11 @@
 
 ## Bug Fixes
 - Calling `rn_rebalance()` a second time on already-rebalanced data no longer fails with "object 'strID' not found"; a stale `strID` column from a previous run is dropped before the structural merge
+- Importing an in-memory `rebalancedNoise_ExportData` object now applies the exported `sensitive_params`; previously the override silently failed for object imports (file path imports were unaffected)
+- Wide-format result tables now place the `is_sens_<variable>` column next to its variable's value columns instead of at the end
 
 ## Internals
+- Removed unused `progress` dependency and replaced the single `glue` usage with base R; `$export()` and `$list_tables()` messages now respect `SDC_LOG_LEVEL = "OFF"`
 - Cell rebalancing now runs as a C++ kernel (`rebalance_cells_cpp()`) with OpenMP parallelization over base cells, replacing a per-cell R loop; rebalancing on 1M records is about 7 times faster and output is identical (deterministic, no RNG involved)
 - R6 engine and functional API share the same core: perturbation/tabulation (`.perturb_tabulate()`), variable merging (`.merge_var_into_table()`), formatting (`.process_result_table()`), and summaries (`.summarize_entry()`)
 - Removed deprecated internal `.compute_sensitivity()`; single package-wide definition of `%||%`
