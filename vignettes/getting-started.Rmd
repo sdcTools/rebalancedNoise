@@ -505,6 +505,34 @@ sdc2$list_tables()
 
 The returned data.table includes `table_name` (character name), `dimensions` (hierarchy labels joined with " x "), and `variables` (comma-separated list of perturbed variables). This is useful for quickly checking which tables have been created and verifying their structure.
 
+### Resetting the Engine
+
+`$rebalance()` can only be performed once per object (and once per imported
+export state). To start over with a different table structure, numerical
+variable, or SDC parameters, call `$reset()`. It removes the rebalancing
+artifacts (`direction_rebalanced`, `strID`, `is_sens_*` columns) from the
+microdata, restores the original row order and drops all cached results:
+
+```{r reset}
+sdc_rst <- rn_setup(dt, sensitive_params = list(n_threshold = 5))
+sdc_rst$rebalance(dim_list = dims_detailed, num_var = "turnover")
+sdc_rst$perturb(dim_list = dims_detailed, variables = "turnover", name = "t1")
+
+# A second rebalance() is not allowed on the same object:
+try(sdc_rst$rebalance(dim_list = dims_country_only, num_var = "turnover"))
+
+# Reset and start over (optionally with new SDC parameters)
+sdc_rst$reset(sensitive_params = list(n_threshold = 3))
+sdc_rst$rebalance(dim_list = dims_country_only, num_var = "turnover")
+sdc_rst$perturb(dim_list = dims_country_only, variables = "turnover", name = "t1")
+sdc_rst$list_tables()
+```
+
+After `$reset()`, the object behaves exactly like a freshly initialized one
+(`get_state()` returns an `rn_initialized` object again, `get_results()`
+reports no results). In the functional API no reset is needed: `rn_rebalance()`
+is stateless and can simply be applied again to an `rn_rebalanced` object.
+
 ## Performance and Parallelization
 
 The EZS engine utilizes C++ with OpenMP for computationally intensive tasks. The number of threads (`n_threads`) is resolved during `rn_setup()` and remains fixed for the life of the object.

@@ -10,8 +10,6 @@ rebalancedNoise <- R6Class(
     #' (created by [rn_init()]).
     #' @param state An `rn_initialized` object from [rn_init()].
     initialize = function(state) {
-      private$log_info("Initialization started...")
-
       private$.state <- state
       self$sensitive_params <- state$sensitive_params
       private$n_threads <- state$n_threads
@@ -24,19 +22,26 @@ rebalancedNoise <- R6Class(
       if (length(state$result_tables) > 0) {
         private$result_tables <- lapply(state$result_tables, .as_rn_perturbed)
       }
-
-      private$log_success("Initialization complete.")
     },
 
     #' @description
     #' Perform rebalancing ONCE and store updated direction values in microdata.
-    #' Delegates to [rn_rebalance()].
+    #' Delegates to [rn_rebalance()]. This can only be performed once per
+    #' object; call `$reset()` first to start over with a different
+    #' structure or variable.
     #' @param dim_list Named list of hierarchies defining the detailed table structure
     #'   for rebalancing (e.g., `list(nace = hier_detailed, bgkl = hier_detailed)`).
     #' @param num_var Name of the numerical variable to rebalance.
     #'   Currently only a single variable is supported.
     #' @return Invisibly returns the object (for chaining).
     rebalance = function(dim_list, num_var) {
+      if (isTRUE(private$rebal_status$done)) {
+        cli::cli_abort(c(
+          "x" = "Rebalancing has already been performed on this object.",
+          "i" = "Call {.fn reset} first to start over with a different structure or variable."
+        ))
+      }
+
       private$.state <- rn_rebalance(
         private$.state,
         dim_list = dim_list,
@@ -54,6 +59,67 @@ rebalancedNoise <- R6Class(
         num_var = num_var
       )
 
+      return(invisible(self))
+    },
+
+    #' @description
+    #' Reset the object to its initialized state, allowing a fresh
+    #' `$rebalance()` with a different structure or variable. Removes all rebalancing artifacts (`direction_rebalanced`,
+    #' `strID`, `is_sens_*` columns) from the microdata, restores the original
+    #' row order and clears all cached perturbation results.
+    #' @param sensitive_params Optional list of SDC rules replacing
+    #'   `self$sensitive_params`. If `NULL` (default), the current parameters
+    #'   are kept.
+    #' @return Invisibly returns the object (for chaining).
+    reset = function(sensitive_params = NULL) {
+      if (!is.null(sensitive_params)) {
+        if (!is.list(sensitive_params)) {
+          cli::cli_abort("{.arg sensitive_params} must be a list.")
+        }
+        self$sensitive_params <- sensitive_params
+      }
+
+      # Strip rebalancing artifacts and restore original row order
+      dt <- private$microdata
+      if (!is.null(dt)) {
+        drop_cols <- intersect(
+          c(
+            "direction_rebalanced",
+            "strID",
+            grep("^is_sens_", names(dt), value = TRUE)
+          ),
+          names(dt)
+        )
+        if (length(drop_cols) > 0) {
+          dt[, (drop_cols) := NULL]
+        }
+        if ("record_id" %in% names(dt)) {
+          setorder(dt, record_id)
+        }
+      }
+      private$microdata <- dt
+
+      # Reset status tracking and caches
+      private$rebal_status <- list(
+        done = FALSE,
+        dim_list = NULL,
+        params = NULL
+      )
+      private$result_tables <- list()
+      private$pert_status <- list()
+
+      # Rebuild the functional-API state as freshly initialized
+      private$.state <- .new_rn_initialized(
+        microdata = dt,
+        sensitive_params = self$sensitive_params,
+        n_threads = private$n_threads,
+        rebal_status = private$rebal_status,
+        result_tables = list()
+      )
+
+      private$log_success(
+        "Reset complete. Call {.fn rebalance} to start over."
+      )
       return(invisible(self))
     },
 

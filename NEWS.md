@@ -7,9 +7,13 @@
 - `print()` and `as.data.table()` methods for all three pipeline classes
 - New R6 bridge methods `get_state()` (returns `rn_rebalanced`/`rn_initialized`) and `get_table(name)` (returns `rn_perturbed`) to feed R6 engine state into the functional API and vice versa
 - `rn_setup()` and the R6 `$initialize()` now reuse the exported `rn_init()` internally
+- New R6 method `$reset()`: returns the object to its initialized state (strips `direction_rebalanced`, `strID` and `is_sens_*` columns, restores original row order, clears cached results; optionally replaces `sensitive_params`)
+
+## Breaking Changes
+- `$rebalance()` (R6) can only be performed once per object; calling it again aborts with a hint to call `$reset()` first. The functional `rn_rebalance()` remains stateless and can be applied repeatedly
 
 ## Bug Fixes
-- Calling `$rebalance()` (or `rn_rebalance()`) a second time no longer fails with "object 'strID' not found"; a stale `strID` column from a previous run is dropped before the structural merge
+- Calling `rn_rebalance()` a second time on already-rebalanced data no longer fails with "object 'strID' not found"; a stale `strID` column from a previous run is dropped before the structural merge
 
 ## Internals
 - R6 engine and functional API share the same core: perturbation/tabulation (`.perturb_tabulate()`), variable merging (`.merge_var_into_table()`), formatting (`.process_result_table()`), and summaries (`.summarize_entry()`)
