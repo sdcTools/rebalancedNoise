@@ -1,6 +1,6 @@
 Package: rebalancedNoise
 Title: Perturbative SDC for Magnitude Tables (EZS Method)
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: c(
   person(
     given="Bernhard", family="Meindl", 
