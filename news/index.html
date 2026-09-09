@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rebalancedNoise</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,6 +36,16 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.1" id="rebalancednoise-031">rebalancedNoise 0.3.1<a class="anchor" aria-label="anchor" href="#rebalancednoise-031"></a></h2>
+<ul><li>Batch tabulation in <code>$perturb()</code> and <code>rn_perturb()</code>: when multiple variables are passed, the table is now aggregated only once via a single <code>makeProblem()</code>/<code>sdcProb2df()</code> call instead of once per variable; this eliminates redundant hierarchy computations and significantly speeds up perturbation of large tables with many variables</li>
+<li>Cell sensitivity with <code>n_threshold</code>-only rules is computed once per table instead of once per variable, and per-variable sensitivity for dominance rules no longer requires repeated full-table merges</li>
+<li>
+<code>$perturb()</code> now derives its skip cache from the stored result tables, so already calculated variables are also detected for tables restored via <code>rn_setup()</code> from an export</li>
+<li>Fix: <code>force = TRUE</code> in <code>$perturb()</code> no longer corrupts an existing result table with duplicated <code>.x</code>/<code>.y</code> columns; stale columns of the re-computed variables are dropped before merging</li>
+<li>Fix: perturbing with dominance rules (<code>p_rule</code>/<code>nk_rule</code>) no longer aborts with a duplicated-<code>strID</code> error coming from <code>.compute_cell_sensitivity()</code>
+</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.0" id="rebalancednoise-030">rebalancedNoise 0.3.0<a class="anchor" aria-label="anchor" href="#rebalancednoise-030"></a></h2>
 <div class="section level3">

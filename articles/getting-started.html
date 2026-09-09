@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rebalancedNoise</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -176,7 +176,7 @@ some cells hold fewer than five records and are flagged as
 sensitive.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sdctools.github.io/rebalancedNoise/">rebalancedNoise</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; Welcome to rebalancedNoise 0.3.0.</span></span>
+<span><span class="co">#&gt; Welcome to rebalancedNoise 0.3.1.</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Attaching package: 'data.table'</span></span>
@@ -287,7 +287,7 @@ the R6 engine and then with the functional interface.</p>
 <span></span>
 <span><span class="co"># Perturb a publication table at country level, stored under a name</span></span>
 <span><span class="va">sdc</span><span class="op">$</span><span class="fu">perturb</span><span class="op">(</span>dim_list <span class="op">=</span> <span class="va">dims_country_only</span>, variables <span class="op">=</span> <span class="st">"turnover"</span>, name <span class="op">=</span> <span class="st">"table_a"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_a"</span> with variable `turnover`.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_a"</span> with variables `turnover`.</span></span>
 <span></span>
 <span><span class="co"># Read the stored table</span></span>
 <span><span class="va">res_r6</span> <span class="op">&lt;-</span> <span class="va">sdc</span><span class="op">$</span><span class="fu">get_results</span><span class="op">(</span><span class="st">"table_a"</span><span class="op">)</span></span>

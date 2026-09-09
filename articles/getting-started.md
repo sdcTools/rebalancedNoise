@@ -59,7 +59,7 @@ some cells hold fewer than five records and are flagged as sensitive.
 ``` r
 
 library(rebalancedNoise)
-#> Welcome to rebalancedNoise 0.3.0.
+#> Welcome to rebalancedNoise 0.3.1.
 library(data.table)
 #> 
 #> Attaching package: 'data.table'
@@ -172,7 +172,7 @@ sdc$rebalance(dim_list = dims_detailed, num_var = "turnover")
 
 # Perturb a publication table at country level, stored under a name
 sdc$perturb(dim_list = dims_country_only, variables = "turnover", name = "table_a")
-#> ✔ Created new table "table_a" with variable `turnover`.
+#> ✔ Created new table "table_a" with variables `turnover`.
 
 # Read the stored table
 res_r6 <- sdc$get_results("table_a")

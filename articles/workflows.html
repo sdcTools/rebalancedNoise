@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rebalancedNoise</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,7 +84,7 @@ probabilities are unequal so that some cells hold fewer than five
 records.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://sdctools.github.io/rebalancedNoise/">rebalancedNoise</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; Welcome to rebalancedNoise 0.3.0.</span></span>
+<span><span class="co">#&gt; Welcome to rebalancedNoise 0.3.1.</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Attaching package: 'data.table'</span></span>
@@ -145,7 +145,7 @@ table.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Performing rebalancing on detailed table structure...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Rebalancing complete. Updated <span style="color: #0000BB;">"direction_rebalanced"</span> column.</span></span>
 <span><span class="va">sdc</span><span class="op">$</span><span class="fu">perturb</span><span class="op">(</span>dim_list <span class="op">=</span> <span class="va">dims_country_only</span>, variables <span class="op">=</span> <span class="st">"turnover"</span>, name <span class="op">=</span> <span class="st">"table_a"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_a"</span> with variable `turnover`.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_a"</span> with variables `turnover`.</span></span></code></pre></div>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">state_fun</span> <span class="op">&lt;-</span> <span class="va">dt</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">rn_init</span><span class="op">(</span>sensitive_params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>n_threshold <span class="op">=</span> <span class="fl">5</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -165,8 +165,7 @@ every table is stored under a name inside the object:</p>
 <span>  variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"turnover"</span>, <span class="st">"assets"</span><span class="op">)</span>,</span>
 <span>  name <span class="op">=</span> <span class="st">"table_b"</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_b"</span> with variable `turnover`.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Added `assets` to existing table <span style="color: #0000BB;">"table_b"</span>.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_b"</span> with variables `turnover` and `assets`.</span></span>
 <span><span class="va">res_b</span> <span class="op">&lt;-</span> <span class="va">sdc</span><span class="op">$</span><span class="fu">get_results</span><span class="op">(</span><span class="st">"table_b"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">res_b</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="va">industry</span>, <span class="va">turnover</span>, <span class="va">turnover_init</span>, <span class="va">turnover_pert</span>,</span>
@@ -199,7 +198,6 @@ example in a named list. The <code>rn_rebalanced</code> object
 <span>  dim_list <span class="op">=</span> <span class="va">dims_industry_only</span>,</span>
 <span>  variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"turnover"</span>, <span class="st">"assets"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Added `assets` to perturbed table.</span></span>
 <span></span>
 <span><span class="va">tables</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>table_a <span class="op">=</span> <span class="fu">rn_format</span><span class="op">(</span><span class="va">t_a</span><span class="op">)</span>, table_b <span class="op">=</span> <span class="fu">rn_format</span><span class="op">(</span><span class="va">t_b</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tables</span><span class="op">)</span></span>
@@ -262,7 +260,7 @@ instead of silently overwriting a stored result:</p>
 <span></span>
 <span><span class="co"># Different structures need different names</span></span>
 <span><span class="va">sdc</span><span class="op">$</span><span class="fu">perturb</span><span class="op">(</span>dim_list <span class="op">=</span> <span class="va">dims_industry_only</span>, variables <span class="op">=</span> <span class="st">"turnover"</span>, name <span class="op">=</span> <span class="st">"table_c"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_c"</span> with variable `turnover`.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_c"</span> with variables `turnover`.</span></span>
 <span><span class="va">sdc</span><span class="op">$</span><span class="fu">list_tables</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    table_name dimensions        variables</span></span>
 <span><span class="co">#&gt;        &lt;char&gt;     &lt;char&gt;           &lt;char&gt;</span></span>
@@ -287,7 +285,7 @@ whole number.</p>
 <span>  dim_list <span class="op">=</span> <span class="va">dims_country_only</span>, variables <span class="op">=</span> <span class="st">"turnover"</span>,</span>
 <span>  name <span class="op">=</span> <span class="st">"table_rounded"</span>, round <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_rounded"</span> with variable `turnover`.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_rounded"</span> with variables `turnover`.</span></span>
 <span><span class="va">res_rounded</span> <span class="op">&lt;-</span> <span class="va">sdc</span><span class="op">$</span><span class="fu">get_results</span><span class="op">(</span><span class="st">"table_rounded"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">res_rounded</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">country</span>, <span class="va">turnover</span>, <span class="va">turnover_pert</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    country  turnover turnover_pert</span></span>
@@ -370,9 +368,7 @@ perturbation still operates on the original variables.</p>
 <span>  variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"turnover"</span>, <span class="st">"workers"</span>, <span class="st">"assets"</span><span class="op">)</span>,</span>
 <span>  name <span class="op">=</span> <span class="st">"multi_var_table"</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"multi_var_table"</span> with variable `turnover`.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Added `workers` to existing table <span style="color: #0000BB;">"multi_var_table"</span>.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Added `assets` to existing table <span style="color: #0000BB;">"multi_var_table"</span>.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"multi_var_table"</span> with variables `turnover`, `workers`, and `assets`.</span></span>
 <span><span class="va">res_lc</span> <span class="op">&lt;-</span> <span class="va">sdc_lc</span><span class="op">$</span><span class="fu">get_results</span><span class="op">(</span><span class="st">"multi_var_table"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">res_lc</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">country</span>, <span class="va">turnover</span>, <span class="va">turnover_pert</span>, <span class="va">workers</span>, <span class="va">workers_pert</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    country  turnover turnover_pert workers workers_pert</span></span>
@@ -395,8 +391,6 @@ perturbation still operates on the original variables.</p>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Initialization complete.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Performing rebalancing on detailed table structure...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Rebalancing complete. Updated <span style="color: #0000BB;">"direction_rebalanced"</span> column.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Added `workers` to perturbed table.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Added `assets` to perturbed table.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu">rn_format</span><span class="op">(</span><span class="va">res_lc_fun</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">country</span>, <span class="va">turnover</span>, <span class="va">turnover_pert</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    country  turnover turnover_pert</span></span>
 <span><span class="co">#&gt;     &lt;char&gt;     &lt;num&gt;         &lt;num&gt;</span></span>
@@ -570,7 +564,7 @@ to an RDS file and restores the full state.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">export_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"rebalanced_data.rds"</span><span class="op">)</span></span>
 <span><span class="va">sdc</span><span class="op">$</span><span class="fu">export</span><span class="op">(</span>file <span class="op">=</span> <span class="va">export_file</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Exported to <span style="color: #0000BB;">/tmp/Rtmp7mLdvl/rebalanced_data.rds</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Exported to <span style="color: #0000BB;">/tmp/RtmpF4ntCf/rebalanced_data.rds</span></span></span>
 <span></span>
 <span><span class="co"># In a later session: load and continue without rebalancing again</span></span>
 <span><span class="va">sdc2</span> <span class="op">&lt;-</span> <span class="fu">rn_setup</span><span class="op">(</span><span class="va">export_file</span><span class="op">)</span></span>
@@ -586,7 +580,7 @@ to an RDS file and restores the full state.</p>
 <span></span>
 <span><span class="co"># New tables from the imported state, no recomputation of the directions</span></span>
 <span><span class="va">sdc2</span><span class="op">$</span><span class="fu">perturb</span><span class="op">(</span>dim_list <span class="op">=</span> <span class="va">dims_industry_only</span>, variables <span class="op">=</span> <span class="st">"workers"</span>, name <span class="op">=</span> <span class="st">"table_d"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_d"</span> with variable `workers`.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"table_d"</span> with variables `workers`.</span></span>
 <span><span class="va">sdc2</span><span class="op">$</span><span class="fu">list_tables</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       table_name dimensions        variables</span></span>
 <span><span class="co">#&gt;           &lt;char&gt;     &lt;char&gt;           &lt;char&gt;</span></span>
@@ -734,7 +728,7 @@ clears all cached tables. Optionally it accepts new SDC parameters.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Performing rebalancing on detailed table structure...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Rebalancing complete. Updated <span style="color: #0000BB;">"direction_rebalanced"</span> column.</span></span>
 <span><span class="va">sdc_rst</span><span class="op">$</span><span class="fu">perturb</span><span class="op">(</span>dim_list <span class="op">=</span> <span class="va">dims_detailed</span>, variables <span class="op">=</span> <span class="st">"turnover"</span>, name <span class="op">=</span> <span class="st">"t1"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"t1"</span> with variable `turnover`.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"t1"</span> with variables `turnover`.</span></span>
 <span></span>
 <span><span class="co"># A second rebalance() on the same object is rejected</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/try.html" class="external-link">try</a></span><span class="op">(</span><span class="va">sdc_rst</span><span class="op">$</span><span class="fu">rebalance</span><span class="op">(</span>dim_list <span class="op">=</span> <span class="va">dims_country_only</span>, num_var <span class="op">=</span> <span class="st">"turnover"</span><span class="op">)</span><span class="op">)</span></span>
@@ -749,7 +743,7 @@ clears all cached tables. Optionally it accepts new SDC parameters.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Performing rebalancing on detailed table structure...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Rebalancing complete. Updated <span style="color: #0000BB;">"direction_rebalanced"</span> column.</span></span>
 <span><span class="va">sdc_rst</span><span class="op">$</span><span class="fu">perturb</span><span class="op">(</span>dim_list <span class="op">=</span> <span class="va">dims_country_only</span>, variables <span class="op">=</span> <span class="st">"turnover"</span>, name <span class="op">=</span> <span class="st">"t1"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"t1"</span> with variable `turnover`.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Created new table <span style="color: #0000BB;">"t1"</span> with variables `turnover`.</span></span>
 <span><span class="va">sdc_rst</span><span class="op">$</span><span class="fu">list_tables</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    table_name dimensions variables</span></span>
 <span><span class="co">#&gt;        &lt;char&gt;     &lt;char&gt;    &lt;char&gt;</span></span>

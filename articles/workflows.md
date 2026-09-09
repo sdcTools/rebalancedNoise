@@ -18,7 +18,7 @@ records.
 ``` r
 
 library(rebalancedNoise)
-#> Welcome to rebalancedNoise 0.3.0.
+#> Welcome to rebalancedNoise 0.3.1.
 library(data.table)
 #> 
 #> Attaching package: 'data.table'
@@ -81,7 +81,7 @@ sdc$rebalance(dim_list = dims_detailed, num_var = "turnover")
 #> ℹ Performing rebalancing on detailed table structure...
 #> ✔ Rebalancing complete. Updated "direction_rebalanced" column.
 sdc$perturb(dim_list = dims_country_only, variables = "turnover", name = "table_a")
-#> ✔ Created new table "table_a" with variable `turnover`.
+#> ✔ Created new table "table_a" with variables `turnover`.
 ```
 
 ``` r
@@ -108,8 +108,7 @@ sdc$perturb(
   variables = c("turnover", "assets"),
   name = "table_b"
 )
-#> ✔ Created new table "table_b" with variable `turnover`.
-#> ✔ Added `assets` to existing table "table_b".
+#> ✔ Created new table "table_b" with variables `turnover` and `assets`.
 res_b <- sdc$get_results("table_b")
 head(res_b[, list(
   industry, turnover, turnover_init, turnover_pert,
@@ -146,7 +145,6 @@ t_b <- rn_perturb(
   dim_list = dims_industry_only,
   variables = c("turnover", "assets")
 )
-#> ✔ Added `assets` to perturbed table.
 
 tables <- list(table_a = rn_format(t_a), table_b = rn_format(t_b))
 names(tables)
@@ -219,7 +217,7 @@ try(sdc$perturb(dim_list = dims_industry_only, variables = "turnover", name = "t
 
 # Different structures need different names
 sdc$perturb(dim_list = dims_industry_only, variables = "turnover", name = "table_c")
-#> ✔ Created new table "table_c" with variable `turnover`.
+#> ✔ Created new table "table_c" with variables `turnover`.
 sdc$list_tables()
 #>    table_name dimensions        variables
 #>        <char>     <char>           <char>
@@ -247,7 +245,7 @@ sdc$perturb(
   dim_list = dims_country_only, variables = "turnover",
   name = "table_rounded", round = TRUE
 )
-#> ✔ Created new table "table_rounded" with variable `turnover`.
+#> ✔ Created new table "table_rounded" with variables `turnover`.
 res_rounded <- sdc$get_results("table_rounded")
 head(res_rounded[, list(country, turnover, turnover_pert)])
 #>    country  turnover turnover_pert
@@ -335,9 +333,7 @@ sdc_lc$perturb(
   variables = c("turnover", "workers", "assets"),
   name = "multi_var_table"
 )
-#> ✔ Created new table "multi_var_table" with variable `turnover`.
-#> ✔ Added `workers` to existing table "multi_var_table".
-#> ✔ Added `assets` to existing table "multi_var_table".
+#> ✔ Created new table "multi_var_table" with variables `turnover`, `workers`, and `assets`.
 res_lc <- sdc_lc$get_results("multi_var_table")
 head(res_lc[, list(country, turnover, turnover_pert, workers, workers_pert)])
 #>    country  turnover turnover_pert workers workers_pert
@@ -363,8 +359,6 @@ res_lc_fun <- dt2 |>
 #> ✔ Initialization complete.
 #> ℹ Performing rebalancing on detailed table structure...
 #> ✔ Rebalancing complete. Updated "direction_rebalanced" column.
-#> ✔ Added `workers` to perturbed table.
-#> ✔ Added `assets` to perturbed table.
 head(rn_format(res_lc_fun)[, list(country, turnover, turnover_pert)])
 #>    country  turnover turnover_pert
 #>     <char>     <num>         <num>
@@ -543,7 +537,7 @@ restores the full state.
 
 export_file <- file.path(tempdir(), "rebalanced_data.rds")
 sdc$export(file = export_file)
-#> ✔ Exported to /tmp/Rtmp7mLdvl/rebalanced_data.rds
+#> ✔ Exported to /tmp/RtmpF4ntCf/rebalanced_data.rds
 
 # In a later session: load and continue without rebalancing again
 sdc2 <- rn_setup(export_file)
@@ -559,7 +553,7 @@ sdc2$list_tables()
 
 # New tables from the imported state, no recomputation of the directions
 sdc2$perturb(dim_list = dims_industry_only, variables = "workers", name = "table_d")
-#> ✔ Created new table "table_d" with variable `workers`.
+#> ✔ Created new table "table_d" with variables `workers`.
 sdc2$list_tables()
 #>       table_name dimensions        variables
 #>           <char>     <char>           <char>
@@ -718,7 +712,7 @@ sdc_rst$rebalance(dim_list = dims_detailed, num_var = "turnover")
 #> ℹ Performing rebalancing on detailed table structure...
 #> ✔ Rebalancing complete. Updated "direction_rebalanced" column.
 sdc_rst$perturb(dim_list = dims_detailed, variables = "turnover", name = "t1")
-#> ✔ Created new table "t1" with variable `turnover`.
+#> ✔ Created new table "t1" with variables `turnover`.
 
 # A second rebalance() on the same object is rejected
 try(sdc_rst$rebalance(dim_list = dims_country_only, num_var = "turnover"))
@@ -733,7 +727,7 @@ sdc_rst$rebalance(dim_list = dims_country_only, num_var = "turnover")
 #> ℹ Performing rebalancing on detailed table structure...
 #> ✔ Rebalancing complete. Updated "direction_rebalanced" column.
 sdc_rst$perturb(dim_list = dims_country_only, variables = "turnover", name = "t1")
-#> ✔ Created new table "t1" with variable `turnover`.
+#> ✔ Created new table "t1" with variables `turnover`.
 sdc_rst$list_tables()
 #>    table_name dimensions variables
 #>        <char>     <char>    <char>
