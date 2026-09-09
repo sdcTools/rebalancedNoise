@@ -107,7 +107,6 @@ rebalancedNoise <- R6Class(
         num_var = NULL
       )
       private$result_tables <- list()
-      private$pert_status <- list()
 
       # Rebuild the functional-API state as freshly initialized
       private$.state <- .new_rn_initialized(
@@ -174,82 +173,77 @@ rebalancedNoise <- R6Class(
       }
 
       dim_names <- names(dim_list)
+      curr_params <- self$sensitive_params
+      table_exists <- name %in% names(private$result_tables)
 
-      # Loop over all target variables
-      for (tv in variables) {
-        # Check cache for this specific variable
-        cache_key <- paste(name, tv, collapse = "_")
-        curr_params <- self$sensitive_params
-        curr_cache <- list(params = curr_params, round = round)
-        if (
-          !force &&
-            !is.null(private$pert_status[[cache_key]]) &&
-            isTRUE(all.equal(curr_cache, private$pert_status[[cache_key]]))
-        ) {
-          private$log_info(
-            "Table {.val {name}} for {.var {tv}} already calculated. Skipping."
-          )
-          next
+      # Cache detection: a variable is considered calculated when it is part
+      # of the stored result table. The hash guard above already ensures that
+      # an existing table shares dim_list, sensitive_params and round.
+      cached_vars <- if (table_exists) {
+        names(private$result_tables[[name]]$variables)
+      } else {
+        character(0)
+      }
+      uncached_vars <- if (force) {
+        unique(variables)
+      } else {
+        setdiff(variables, cached_vars)
+      }
+      for (tv in setdiff(variables, uncached_vars)) {
+        private$log_info(
+          "Table {.val {name}} for {.var {tv}} already calculated. Skipping."
+        )
+      }
+
+      if (length(uncached_vars) == 0) {
+        return(invisible(self))
+      }
+
+      # Batch tabulation: single makeProblem/sdcProb2df for all uncached variables
+      tab_res <- .perturb_tabulate(
+        microdata = private$microdata,
+        dim_list = dim_list,
+        variables = uncached_vars,
+        sensitive_params = curr_params,
+        round = round,
+        n_threads = private$n_threads
+      )
+      full_res <- tab_res$table
+      new_vars <- .var_metadata(uncached_vars, curr_params)
+
+      if (table_exists) {
+        # Drop stale columns of re-computed (forced) variables before merging
+        # to avoid duplicated .x/.y columns in the stored table
+        stale_vars <- intersect(uncached_vars, cached_vars)
+        if (length(stale_vars) > 0) {
+          private$result_tables[[name]]$table[, (.var_cols(stale_vars)) := NULL]
         }
-
-        # Perturb and tabulate this variable (shared core with rn_perturb)
-        tab_res <- .perturb_tabulate(
-          microdata = private$microdata,
+        # Merge new columns into the existing table
+        private$result_tables[[name]]$table <- .merge_var_into_table(
+          existing_table = private$result_tables[[name]]$table,
+          full_res = full_res,
+          dim_names = dim_names,
+          cols_to_add = .var_cols(uncached_vars),
+          reorder = TRUE
+        )
+        private$result_tables[[name]]$variables[names(new_vars)] <- new_vars
+        private$log_success(
+          "Added {.var {uncached_vars}} to existing table {.val {name}}."
+        )
+      } else {
+        # New table: -> store entry
+        private$result_tables[[name]] <- .new_rn_perturbed(
+          table = full_res,
+          hash = table_hash,
           dim_list = dim_list,
-          target_var = tv,
           sensitive_params = curr_params,
           round = round,
-          n_threads = private$n_threads
+          base_cells = tab_res$base_cells,
+          variables = new_vars
         )
-        full_res <- tab_res$table
-        base_cells <- tab_res$base_cells
-        init_name <- paste0(tv, "_init")
-        p_name <- paste0(tv, "_pert")
-        sens_col_name <- paste0("is_sens_", tv)
-
-        # Create result entry structure (only for first variable)
-        if (tv == variables[1]) {
-          result_entry <- .new_rn_perturbed(
-            table = full_res,
-            hash = table_hash,
-            dim_list = dim_list,
-            sensitive_params = curr_params,
-            round = round,
-            base_cells = base_cells[, .(strID, is_base_cell)],
-            variables = list()
-          )
-        }
-
-        if (tv == variables[1] && !(name %in% names(private$result_tables))) {
-          # New table - store entry
-          private$result_tables[[name]] <- result_entry
-
-          private$log_success(
-            "Created new table {.val {name}} with variable {.var {tv}}."
-          )
-        } else {
-          # Merge new columns into the existing table
-          private$result_tables[[name]]$table <- .merge_var_into_table(
-            existing_table = private$result_tables[[name]]$table,
-            full_res = full_res,
-            dim_names = dim_names,
-            cols_to_add = c(tv, init_name, p_name, sens_col_name),
-            reorder = tv == variables[1]
-          )
-
-          private$log_success(
-            "Added {.var {tv}} to existing table {.val {name}}."
-          )
-        }
-
-        # Add variable to metadata
-        private$result_tables[[name]]$variables[[tv]] <- list(
-          sensitive_params = curr_params,
-          is_sens_col = sens_col_name
+        private$log_success(
+          "Created new table {.val {name}} with variables {.var {uncached_vars}}."
         )
-
-        # Update cache
-        private$pert_status[[cache_key]] <- copy(curr_cache)
       }
 
       return(invisible(self))
@@ -469,7 +463,6 @@ rebalancedNoise <- R6Class(
     n_threads = 1L,
     .state = NULL, # rn_initialized / rn_rebalanced S3 state object
     microdata = NULL, # Stores microdata with record_id, direction, direction_rebalanced, noise_multiplier
-    pert_status = list(), # Cache for perturbation status (keyed by "target_var_name")
 
     # Track rebalancing status
     rebal_status = list(

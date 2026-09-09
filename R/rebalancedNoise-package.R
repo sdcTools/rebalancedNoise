@@ -6,7 +6,7 @@
 #' @importFrom Rcpp sourceCpp
 #' @importFrom sdcHierarchies hier_create
 #' @importFrom parallel detectCores
-#' @importFrom stats quantile
+#' @importFrom stats quantile setNames
 "_PACKAGE"
 
 utils::globalVariables(c(

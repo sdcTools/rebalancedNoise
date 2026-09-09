@@ -137,7 +137,7 @@
   microdata[, (sens_col) := is_sens_vec]
 
   # Aggregate to cell level: cell is sensitive if any record is sensitive
-  sens_lookup <- microdata[, .(strID, is_sens = any(get(sens_col))), by = strID]
+  sens_lookup <- microdata[, .(is_sens = any(get(sens_col))), by = strID]
   setnames(sens_lookup, "is_sens", sens_col)
 
   return(sens_lookup)

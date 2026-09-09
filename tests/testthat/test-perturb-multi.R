@@ -73,6 +73,69 @@ test_that("3-way perturbation columns are created", {
   expect_false(all(results$turnover_init == results$turnover_pert))
 })
 
+test_that("dominance rules work for multi-variable perturbation (regression 0.3.0 crash)", {
+  dt <- create_test_data(n_rows = 100)
+  dt[, assets := turnover * 2]
+  dims <- create_dims_region_only()
+  params <- list(n_threshold = 1, p_rule = 60)
+
+  sdc_batch <- rn_setup(data = dt, sensitive_params = params)
+  sdc_batch$rebalance(dim_list = dims, num_var = "turnover")
+  sdc_batch$perturb(
+    dim_list = dims, variables = c("turnover", "assets"), name = "dom"
+  )
+
+  sdc_seq <- rn_setup(data = dt, sensitive_params = params)
+  sdc_seq$rebalance(dim_list = dims, num_var = "turnover")
+  sdc_seq$perturb(dim_list = dims, variables = "turnover", name = "dom")
+  sdc_seq$perturb(dim_list = dims, variables = "assets", name = "dom")
+
+  res_batch <- sdc_batch$get_results("dom")[order(REGION)]
+  res_seq <- sdc_seq$get_results("dom")[order(REGION)]
+
+  expect_equal(
+    res_batch[, .SD, .SDcols = names(res_seq)],
+    res_seq,
+    ignore_attr = TRUE
+  )
+  # Aggregates are never sensitive
+  sens_cols <- c("is_sens_turnover", "is_sens_assets")
+  expect_false(any(unlist(res_batch[is_internal == FALSE, ..sens_cols])))
+})
+
+test_that("batched multi-variable tabulation matches sequential per-variable merges", {
+  dt <- create_test_data(n_rows = 100)
+  dt[, assets := turnover * 2]
+  dims <- create_dims_region_only()
+
+  sdc_batch <- rn_setup(
+    data = dt,
+    sensitive_params = create_sensitive_params(n_threshold = 3)
+  )
+  sdc_batch$rebalance(dim_list = dims, num_var = "turnover")
+  sdc_batch$perturb(
+    dim_list = dims, variables = c("turnover", "assets"), name = "batch"
+  )
+
+  sdc_seq <- rn_setup(
+    data = dt,
+    sensitive_params = create_sensitive_params(n_threshold = 3)
+  )
+  sdc_seq$rebalance(dim_list = dims, num_var = "turnover")
+  sdc_seq$perturb(dim_list = dims, variables = "turnover", name = "seq")
+  sdc_seq$perturb(dim_list = dims, variables = "assets", name = "seq")
+
+  res_batch <- sdc_batch$get_results("batch")[order(REGION)]
+  res_seq <- sdc_seq$get_results("seq")[order(REGION)]
+
+  expect_setequal(names(res_batch), names(res_seq))
+  expect_equal(
+    res_batch[, .SD, .SDcols = names(res_seq)],
+    res_seq,
+    ignore_attr = TRUE
+  )
+})
+
 test_that("long format includes init columns", {
   dt <- create_test_data(n_rows = 100)
   dims <- create_dims_region_only()

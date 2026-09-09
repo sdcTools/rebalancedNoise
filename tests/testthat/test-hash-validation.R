@@ -55,6 +55,54 @@ test_that("same hierarchy with same name works (idempotent)", {
   sdc$perturb(dim_list = dims, variables = "turnover", name = "idempotent", force = TRUE)
 })
 
+test_that("imported result tables are recognized as cached", {
+  dt <- create_test_data()
+  dims <- create_dims_region_only()
+
+  sdc1 <- rn_setup(data = dt, sensitive_params = create_sensitive_params(n_threshold = 3))
+  sdc1$rebalance(dim_list = dims, num_var = "turnover")
+  sdc1$perturb(dim_list = dims, variables = "turnover", name = "tbl")
+
+  sdc2 <- rn_setup(data = sdc1$export(include_results = TRUE))
+
+  # Re-perturbing an existing variable must hit the cache, not re-merge
+  expect_message(
+    sdc2$perturb(dim_list = dims, variables = "turnover", name = "tbl"),
+    "already calculated"
+  )
+  cols <- names(sdc2$get_results("tbl"))
+  expect_false(any(grepl("\\.(x|y)$", cols)))
+})
+
+test_that("force = TRUE replaces columns instead of duplicating them", {
+  dt <- create_test_data()
+  dims <- create_dims_region_only()
+
+  sdc <- rn_setup(data = dt, sensitive_params = create_sensitive_params(n_threshold = 3))
+  sdc$rebalance(dim_list = dims, num_var = "turnover")
+  sdc$perturb(dim_list = dims, variables = "turnover", name = "forced")
+
+  res_before <- sdc$get_results("forced")
+  expect_message(
+    sdc$perturb(
+      dim_list = dims, variables = "turnover",
+      name = "forced", force = TRUE
+    ),
+    "Added"
+  )
+  res_after <- sdc$get_results("forced")
+
+  expect_setequal(names(res_after), names(res_before))
+  expect_false(any(grepl("\\.(x|y)$", names(res_after))))
+  expect_equal(
+    res_after[order(REGION)],
+    res_before[order(REGION)]
+  )
+  # Long format must still work after forcing
+  res_long <- sdc$get_results("forced", format = "long")
+  expect_true("val_pert" %in% names(res_long))
+})
+
 test_that("hash includes sensitive_params", {
   dt <- create_test_data(n_rows = 100)
   dims <- create_dims_region_only()

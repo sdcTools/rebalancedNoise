@@ -1,3 +1,11 @@
+# rebalancedNoise 0.3.1
+
+- Batch tabulation in `$perturb()` and `rn_perturb()`: when multiple variables are passed, the table is now aggregated only once via a single `makeProblem()`/`sdcProb2df()` call instead of once per variable; this eliminates redundant hierarchy computations and significantly speeds up perturbation of large tables with many variables
+- Cell sensitivity with `n_threshold`-only rules is computed once per table instead of once per variable, and per-variable sensitivity for dominance rules no longer requires repeated full-table merges
+- `$perturb()` now derives its skip cache from the stored result tables, so already calculated variables are also detected for tables restored via `rn_setup()` from an export
+- Fix: `force = TRUE` in `$perturb()` no longer corrupts an existing result table with duplicated `.x`/`.y` columns; stale columns of the re-computed variables are dropped before merging
+- Fix: perturbing with dominance rules (`p_rule`/`nk_rule`) no longer aborts with a duplicated-`strID` error coming from `.compute_cell_sensitivity()`
+
 # rebalancedNoise 0.3.0
 
 ## New Features

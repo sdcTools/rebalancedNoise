@@ -1,41 +1,41 @@
 # Core perturbation + tabulation logic, shared between the functional API
 # (rn_perturb) and the R6 engine ($perturb).
 
-# Internal helper: Perturb a single variable and tabulate it through the
-# hierarchy. Extracted from the R6 $perturb() method.
+# Perturb variables and tabulate through the hierarchy.
+# Processes all variables in a single call to
+# avoid redundant aggregation of large tables.
 # Returns list(table = <result data.table>, base_cells = <data.table>)
 .perturb_tabulate <- function(
   microdata,
   dim_list,
-  target_var,
+  variables,
   sensitive_params,
   round = FALSE,
   n_threads = 1L
 ) {
-  tv <- target_var
   dt <- copy(microdata)
+  variables <- unique(variables)
+  dim_names <- names(dim_list)
 
-  # Compute initial perturbation (using original random directions)
-  init_name <- paste0(tv, "_init")
-  dt[, (init_name) := get(tv) * (1 + direction * noise_multiplier)]
-
-  # Compute final perturbation (using rebalanced directions)
-  p_name <- paste0(tv, "_pert")
-  dt[,
-    (p_name) := get(tv) * (1 + direction_rebalanced * noise_multiplier)
-  ]
-
-  # Optionally round perturbed values so tabulated cells are integers
-  if (round) {
-    dt[, (init_name) := round(get(init_name))]
-    dt[, (p_name) := round(get(p_name))]
+  # Compute initial and final perturbation for all variables in one pass
+  all_num_vars <- character(0)
+  for (tv in variables) {
+    init_name <- paste0(tv, "_init")
+    p_name <- paste0(tv, "_pert")
+    dt[, (init_name) := get(tv) * (1 + direction * noise_multiplier)]
+    dt[, (p_name) := get(tv) * (1 + direction_rebalanced * noise_multiplier)]
+    if (round) {
+      dt[, (init_name) := round(get(init_name))]
+      dt[, (p_name) := round(get(p_name))]
+    }
+    all_num_vars <- c(all_num_vars, tv, init_name, p_name)
   }
 
-  # Aggregate original, initial, and final through hierarchy
+  # Compute full table with all numeric variables
   prob_object <- sdcTable::makeProblem(
     data = dt,
     dimList = dim_list,
-    numVarInd = c(tv, init_name, p_name)
+    numVarInd = all_num_vars
   )
 
   full_res <- as.data.table(
@@ -50,7 +50,6 @@
   setnames(full_res, "freq", "n_obs")
 
   # Re-join microdata with new strID from this perturb call's dim_list
-  dim_names <- names(dim_list)
   # Deduplicate dimension combinations to avoid Cartesian product with bogus codes
   struct_mapping <- unique(
     full_res[, .SD, .SDcols = c(dim_names, "strID")],
@@ -68,38 +67,54 @@
     dt[, strID.new := NULL]
   }
 
-  # Compute sensitivity for this result table
-  sens_result <- .compute_cell_sensitivity(
-    microdata = dt,
-    sensitive_params = sensitive_params,
-    target_var = tv,
-    n_threads = n_threads
-  )
-
-  # Remove n_obs from sens_result to avoid duplicate columns
-  sens_result[, n_obs := NULL]
-
-  # Identify base cells (only base cells can be sensitive)
-  base_cells <- .identify_base_cells(
-    prob_object,
-    dim_names,
-    full_res
-  )
-
-  # Merge sensitivity into full_res
-  full_res <- merge(full_res, sens_result, by = "strID", all.x = TRUE)
-  sens_col_name <- paste0("is_sens_", tv)
-  full_res[is.na(get(sens_col_name)), (sens_col_name) := FALSE]
-
-  # Only base cells are sensitive; aggregates are FALSE
-  # Deduplicate base_cells by strID to avoid Cartesian product when all hierarchy
-  # levels share the same strID
+  # Identify base cells
+  base_cells <- .identify_base_cells(prob_object, dim_names, full_res)
+  # Deduplicate base_cells by strID to avoid Cartesian product
   if (nrow(base_cells) > 0) {
     base_cells <- base_cells[, .SD[1], by = "strID"]
   }
+
+  # Merge base cells into full_res once (applies to all variables)
   full_res <- merge(full_res, base_cells, by = "strID", all.x = TRUE)
   full_res[is.na(is_base_cell), is_base_cell := FALSE]
-  full_res[is_base_cell == FALSE, (sens_col_name) := FALSE]
+
+  # Sensitivity flags: with n_threshold only, a cell is sensitive if its
+  # record count <= threshold), so it is computed once for all variables.
+  # Dominance rules require the per-variable C++ check because
+  # check_sensitivity_cpp() takes a single variable.
+  sens_cols <- paste0("is_sens_", variables)
+  is_only_n <- (is.null(sensitive_params$p_rule) ||
+    sensitive_params$p_rule == 0) &&
+    (is.null(sensitive_params$nk_rule$n) || sensitive_params$nk_rule$n == 0)
+
+  if (is_only_n) {
+    n_thresh <- as.integer(sensitive_params$n_threshold %||% 0)
+    sens_vec <- !is.na(full_res$n_obs) &
+      full_res$n_obs <= n_thresh &
+      full_res$is_base_cell
+    full_res[, (sens_cols) := FALSE]
+    full_res[sens_vec, (sens_cols) := TRUE]
+  } else {
+    # Assign by strID match to avoid one full-table merge per variable
+    for (tv in variables) {
+      sens_result <- .compute_cell_sensitivity(
+        microdata = dt,
+        sensitive_params = sensitive_params,
+        target_var = tv,
+        n_threads = n_threads
+      )
+      sens_col_name <- paste0("is_sens_", tv)
+      full_res[, (sens_col_name) := sens_result[[sens_col_name]][
+        match(full_res$strID, sens_result$strID)
+      ]]
+      full_res[is.na(get(sens_col_name)), (sens_col_name) := FALSE]
+    }
+  }
+
+  # Only base cells are sensitive; aggregates are FALSE
+  if (!all(full_res$is_base_cell)) {
+    full_res[is_base_cell == FALSE, (sens_cols) := FALSE]
+  }
 
   # Rename is_base_cell to is_internal for user-facing output
   setnames(full_res, "is_base_cell", "is_internal")
@@ -109,15 +124,33 @@
   # value when it appears at different hierarchy levels (e.g., b, b01, b001)
   # All these rows share the same strID, so we keep one row per dimension combo
   if (nrow(full_res) > 0) {
-    full_res <- full_res[, .SD[1], by = names(dim_list)]
+    full_res <- full_res[, .SD[1], by = dim_names]
   }
 
-  # Keep strID for sorting in the formatting step
-
-  # Reorder columns: dims + meta + grouped by variable
-  .reorder_var_columns(full_res, names(dim_list))
+  # Reorder columns
+  .reorder_var_columns(full_res, dim_names)
 
   list(table = full_res, base_cells = base_cells[, .(strID, is_base_cell)])
+}
+
+# Utility Fn: All result-table columns belonging to a variable.
+.var_cols <- function(variables) {
+  unlist(lapply(variables, function(tv) {
+    c(tv, paste0(tv, "_init"), paste0(tv, "_pert"), paste0("is_sens_", tv))
+  }))
+}
+
+# Utility Fn: Build per-variable metadata for result entries.
+.var_metadata <- function(variables, sensitive_params) {
+  setNames(
+    lapply(variables, function(tv) {
+      list(
+        sensitive_params = sensitive_params,
+        is_sens_col = paste0("is_sens_", tv)
+      )
+    }),
+    variables
+  )
 }
 
 # Internal helper: Reorder result columns as dims + meta + grouped by variable.
@@ -135,8 +168,7 @@
   # Build ordered column list
   ordered_cols <- c(dim_names, "n_obs", "is_internal")
   for (v in all_vars) {
-    v_cols <- c(v, paste0(v, "_init"), paste0(v, "_pert"), paste0("is_sens_", v))
-    ordered_cols <- c(ordered_cols, intersect(v_cols, all_cols))
+    ordered_cols <- c(ordered_cols, intersect(.var_cols(v), all_cols))
   }
 
   setcolorder(full_res, ordered_cols)
@@ -274,51 +306,24 @@ rn_perturb <- function(x, dim_list, variables, round = FALSE) {
   .validate_perturb_args(microdata, dim_list, variables, round)
 
   table_hash <- .get_table_hash(dim_list, sensitive_params, round)
-  dim_names <- names(dim_list)
 
-  result_tables <- list()
+  # Batch tabulation: single makeProblem/sdcProb2df for all variables
+  res <- .perturb_tabulate(
+    microdata = microdata,
+    dim_list = dim_list,
+    variables = variables,
+    sensitive_params = sensitive_params,
+    round = round,
+    n_threads = n_threads
+  )
 
-  for (tv in variables) {
-    res <- .perturb_tabulate(
-      microdata = microdata,
-      dim_list = dim_list,
-      target_var = tv,
-      sensitive_params = sensitive_params,
-      round = round,
-      n_threads = n_threads
-    )
-    full_res <- res$table
-    base_cells <- res$base_cells
-    sens_col_name <- paste0("is_sens_", tv)
-
-    if (length(result_tables) == 0) {
-      result_tables <- list(
-        .new_rn_perturbed(
-          table = full_res,
-          hash = table_hash,
-          dim_list = dim_list,
-          sensitive_params = sensitive_params,
-          round = round,
-          base_cells = base_cells[, .(strID, is_base_cell)],
-          variables = list()
-        )
-      )
-    } else {
-      result_tables[[1]]$table <- .merge_var_into_table(
-        existing_table = result_tables[[1]]$table,
-        full_res = full_res,
-        dim_names = dim_names,
-        cols_to_add = c(tv, paste0(tv, "_init"), paste0(tv, "_pert"), sens_col_name),
-        reorder = TRUE
-      )
-      .rn_log_success("Added {.var {tv}} to perturbed table.")
-    }
-
-    result_tables[[1]]$variables[[tv]] <- list(
-      sensitive_params = sensitive_params,
-      is_sens_col = sens_col_name
-    )
-  }
-
-  result_tables[[1]]
+  .new_rn_perturbed(
+    table = res$table,
+    hash = table_hash,
+    dim_list = dim_list,
+    sensitive_params = sensitive_params,
+    round = round,
+    base_cells = res$base_cells,
+    variables = .var_metadata(unique(variables), sensitive_params)
+  )
 }

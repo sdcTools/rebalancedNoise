@@ -18,5 +18,8 @@ import(sdcTable)
 importFrom(Rcpp,sourceCpp)
 importFrom(parallel,detectCores)
 importFrom(sdcHierarchies,hier_create)
-importFrom(stats,quantile)
+importFrom(stats,
+  quantile,
+  setNames
+)
 useDynLib(rebalancedNoise, .registration = TRUE)
