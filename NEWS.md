@@ -1,3 +1,7 @@
+# rebalancedNoise 0.3.2
+
+- The greedy rebalancing pass now orders records within a base cell by descending original value correctly
+
 # rebalancedNoise 0.3.1
 
 - Batch tabulation in `$perturb()` and `rn_perturb()`: when multiple variables are passed, the table is now aggregated only once via a single `makeProblem()`/`sdcProb2df()` call instead of once per variable; this eliminates redundant hierarchy computations and significantly speeds up perturbation of large tables with many variables

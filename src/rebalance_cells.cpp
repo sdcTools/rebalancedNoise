@@ -12,7 +12,7 @@ using namespace Rcpp;
 //
 // Inputs are sorted by strID; group_starts holds the 0-based start index of
 // each cell (same convention as check_sensitivity_cpp). For each cell the
-// records are ordered by descending |orig * mult| (stable, so ties keep the
+// records are ordered by descending |orig| (stable, so ties keep the
 // input order) and processed by the greedy running-noise pass. Cells are
 // independent of each other and are processed in parallel.
 //
@@ -49,8 +49,8 @@ NumericVector rebalance_cells_cpp(NumericVector orig,
       idx[i] = i;
     }
     std::stable_sort(idx.begin(), idx.end(), [&](int a, int b) {
-      const double ia = std::abs(orig[start + a] * mult[start + a]);
-      const double ib = std::abs(orig[start + b] * mult[start + b]);
+      const double ia = std::abs(orig[start + a]);
+      const double ib = std::abs(orig[start + b]);
       return ia > ib;
     });
 
