@@ -1,6 +1,7 @@
 Package: rebalancedNoise
 Title: Perturbative SDC for Magnitude Tables (EZS Method)
-Version: 0.3.1
+Version: 0.3.2
+Date: 2026-11-19
 Authors@R: c(
   person(
     given="Bernhard", family="Meindl", 
@@ -37,4 +38,4 @@ Suggests:
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 URL: https://sdctools.github.io/rebalancedNoise/
-Config/roxygen2/version: 8.1.0
+Config/roxygen2/version: 8.1.1
