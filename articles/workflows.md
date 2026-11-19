@@ -18,7 +18,7 @@ records.
 ``` r
 
 library(rebalancedNoise)
-#> Welcome to rebalancedNoise 0.3.1.
+#> Welcome to rebalancedNoise 0.3.2.
 library(data.table)
 #> 
 #> Attaching package: 'data.table'
@@ -27,7 +27,7 @@ library(data.table)
 #>     %notin%
 library(sdcHierarchies)
 #> Loading required package: shinythemes
-#> Package 'sdcHierarchies' 0.23.1 has been loaded.
+#> Package 'sdcHierarchies' 0.23.2 has been loaded.
 
 set.seed(1)
 N <- 300
@@ -116,18 +116,18 @@ head(res_b[, list(
 )])
 #>    industry  turnover turnover_init turnover_pert   assets assets_init
 #>      <char>     <num>         <num>         <num>    <num>       <num>
-#> 1:    Total 1651113.7     1853460.8     1679243.9 15895256    17764751
-#> 2:     Tech  526319.4      571895.9      539107.1  4897189     5397934
-#> 3:      Mfg  323879.3      405202.8      333368.4  3231023     3207915
-#> 4:   Retail  411855.2      471077.7      417148.2  3691171     5013046
-#> 5: Services  389059.7      405284.4      389620.2  4075872     4145856
+#> 1:    Total 1651113.7     1853460.8     1672827.0 15895256    17764751
+#> 2:     Tech  526319.4      571895.9      534547.6  4897189     5397934
+#> 3:      Mfg  323879.3      405202.8      331129.1  3231023     3207915
+#> 4:   Retail  411855.2      471077.7      417154.9  3691171     5013046
+#> 5: Services  389059.7      405284.4      389995.4  4075872     4145856
 #>    assets_pert
 #>          <num>
-#> 1:    16007592
-#> 2:     5283449
-#> 3:     3009194
-#> 4:     3846979
-#> 5:     3867971
+#> 1:    16126549
+#> 2:     4982531
+#> 3:     3021030
+#> 4:     4055376
+#> 5:     4067612
 
 # All stored tables at once, returned as a named list
 names(sdc$get_results())
@@ -250,12 +250,12 @@ res_rounded <- sdc$get_results("table_rounded")
 head(res_rounded[, list(country, turnover, turnover_pert)])
 #>    country  turnover turnover_pert
 #>     <char>     <num>         <num>
-#> 1:   Total 1651113.7       1679249
-#> 2:      AT  544080.2        548800
-#> 3:      DE  335581.4        334305
-#> 4:      NL  313695.9        316612
-#> 5:      SE  216463.0        215232
-#> 6:      FR  197918.8        187070
+#> 1:   Total 1651113.7       1672829
+#> 2:      AT  544080.2        544780
+#> 3:      DE  335581.4        332409
+#> 4:      NL  313695.9        315378
+#> 5:      SE  216463.0        213753
+#> 6:      FR  197918.8        189279
 
 all(res_rounded$turnover_pert == round(res_rounded$turnover_pert))
 #> [1] TRUE
@@ -338,12 +338,12 @@ res_lc <- sdc_lc$get_results("multi_var_table")
 head(res_lc[, list(country, turnover, turnover_pert, workers, workers_pert)])
 #>    country  turnover turnover_pert workers workers_pert
 #>     <char>     <num>         <num>   <num>        <num>
-#> 1:   Total 1651113.7     1720381.2   73686     75565.00
-#> 2:      AT  544080.2      586227.6   22973     26204.30
-#> 3:      DE  335581.4      329979.7   17957     13920.51
-#> 4:      NL  313695.9      295206.6   12488     11133.28
-#> 5:      SE  216463.0      208358.1    8834      9326.71
-#> 6:      FR  197918.8      223378.2    8502      9135.63
+#> 1:   Total 1651113.7     1694362.7   73686     76938.44
+#> 2:      AT  544080.2      607827.5   22973     23866.18
+#> 3:      DE  335581.4      313287.8   17957     15971.59
+#> 4:      NL  313695.9      305272.6   12488     12867.98
+#> 5:      SE  216463.0      223745.7    8834      9237.45
+#> 6:      FR  197918.8      166998.0    8502      9150.67
 ```
 
 ``` r
@@ -362,12 +362,12 @@ res_lc_fun <- dt2 |>
 head(rn_format(res_lc_fun)[, list(country, turnover, turnover_pert)])
 #>    country  turnover turnover_pert
 #>     <char>     <num>         <num>
-#> 1:   Total 1651113.7     1720381.2
-#> 2:      AT  544080.2      586227.6
-#> 3:      DE  335581.4      329979.7
-#> 4:      NL  313695.9      295206.6
-#> 5:      SE  216463.0      208358.1
-#> 6:      FR  197918.8      223378.2
+#> 1:   Total 1651113.7     1694362.7
+#> 2:      AT  544080.2      607827.5
+#> 3:      DE  335581.4      313287.8
+#> 4:      NL  313695.9      305272.6
+#> 5:      SE  216463.0      223745.7
+#> 6:      FR  197918.8      166998.0
 ```
 
 ## Evaluating Results
@@ -385,19 +385,19 @@ sdc$summarize(table = "table_a", target_vars = "turnover")
 #> ── Variable: "turnover" ──
 #> 
 #> ── OVERALL
-#> ℹ nrCells: 7 | MAPE (Initial): 25.181% | MAPE (Final): 12.57% | Noise Reduction: 50.08%
+#> ℹ nrCells: 7 | MAPE (Initial): 25.181% | MAPE (Final): 12.371% | Noise Reduction: 50.87%
 #> Percentiles - Relative (%) Initial:
 #> -15.98 | -14.948 | -10.819 | 6.739 | 16.024 | 26.364 | 64.789 | 75.403 | 78.057
 #> Percentiles - Relative (%) Final:
-#> -5.48 | -5.185 | -4.007 | -0.475 | 0.867 | 1.316 | 55.151 | 73.476 | 78.057
+#> -4.364 | -4.177 | -3.431 | -1.099 | 0.128 | 0.925 | 55.034 | 73.452 | 78.057
 #> Percentiles - Absolute (Units) Final:
-#> -10846.157 | -10271.829 | -7974.517 | -1254.123 | 2913.184 | 16422.458 |
-#> 32138.769 | 33513.132 | 33856.722
+#> -8637.447 | -8309.262 | -6996.523 | -2940.675 | 696.798 | 11695.947 | 30213.698
+#> | 33128.117 | 33856.722
 #> 
 #> ── Summary Statistics
 #> • Sensitivity Rate: 0% (0/7 cells)
 #> • Internal Cells: 6 (85.7%)
-#> • Noise Reduction: 50.08%
+#> • Noise Reduction: 50.87%
 ```
 
 ``` r
@@ -409,19 +409,19 @@ rn_summarize(t_a)
 #> ── Variable: "turnover" ──
 #> 
 #> ── OVERALL
-#> ℹ nrCells: 7 | MAPE (Initial): 25.181% | MAPE (Final): 12.57% | Noise Reduction: 50.08%
+#> ℹ nrCells: 7 | MAPE (Initial): 25.181% | MAPE (Final): 12.371% | Noise Reduction: 50.87%
 #> Percentiles - Relative (%) Initial:
 #> -15.98 | -14.948 | -10.819 | 6.739 | 16.024 | 26.364 | 64.789 | 75.403 | 78.057
 #> Percentiles - Relative (%) Final:
-#> -5.48 | -5.185 | -4.007 | -0.475 | 0.867 | 1.316 | 55.151 | 73.476 | 78.057
+#> -4.364 | -4.177 | -3.431 | -1.099 | 0.128 | 0.925 | 55.034 | 73.452 | 78.057
 #> Percentiles - Absolute (Units) Final:
-#> -10846.157 | -10271.829 | -7974.517 | -1254.123 | 2913.184 | 16422.458 |
-#> 32138.769 | 33513.132 | 33856.722
+#> -8637.447 | -8309.262 | -6996.523 | -2940.675 | 696.798 | 11695.947 | 30213.698
+#> | 33128.117 | 33856.722
 #> 
 #> ── Summary Statistics
 #> • Sensitivity Rate: 0% (0/7 cells)
 #> • Internal Cells: 6 (85.7%)
-#> • Noise Reduction: 50.08%
+#> • Noise Reduction: 50.87%
 ```
 
 How to read the report:
@@ -455,19 +455,19 @@ result_a <- sdc$summarize(table = "table_a", target_vars = "turnover")
 #> ── Variable: "turnover" ──
 #> 
 #> ── OVERALL
-#> ℹ nrCells: 7 | MAPE (Initial): 25.181% | MAPE (Final): 12.57% | Noise Reduction: 50.08%
+#> ℹ nrCells: 7 | MAPE (Initial): 25.181% | MAPE (Final): 12.371% | Noise Reduction: 50.87%
 #> Percentiles - Relative (%) Initial:
 #> -15.98 | -14.948 | -10.819 | 6.739 | 16.024 | 26.364 | 64.789 | 75.403 | 78.057
 #> Percentiles - Relative (%) Final:
-#> -5.48 | -5.185 | -4.007 | -0.475 | 0.867 | 1.316 | 55.151 | 73.476 | 78.057
+#> -4.364 | -4.177 | -3.431 | -1.099 | 0.128 | 0.925 | 55.034 | 73.452 | 78.057
 #> Percentiles - Absolute (Units) Final:
-#> -10846.157 | -10271.829 | -7974.517 | -1254.123 | 2913.184 | 16422.458 |
-#> 32138.769 | 33513.132 | 33856.722
+#> -8637.447 | -8309.262 | -6996.523 | -2940.675 | 696.798 | 11695.947 | 30213.698
+#> | 33128.117 | 33856.722
 #> 
 #> ── Summary Statistics
 #> • Sensitivity Rate: 0% (0/7 cells)
 #> • Internal Cells: 6 (85.7%)
-#> • Noise Reduction: 50.08%
+#> • Noise Reduction: 50.87%
 names(result_a)
 #> [1] "overall" "meta"
 names(result_a$overall)
@@ -484,38 +484,38 @@ result_b <- sdc$summarize(table = "table_b", target_vars = c("turnover", "assets
 #> ── Variable: "turnover" ──
 #> 
 #> ── OVERALL
-#> ℹ nrCells: 5 | MAPE (Initial): 12.914% | MAPE (Final): 1.699% | Noise Reduction: 86.85%
+#> ℹ nrCells: 5 | MAPE (Initial): 12.914% | MAPE (Final): 1.329% | Noise Reduction: 89.71%
 #> Percentiles - Relative (%) Initial:
 #> 4.17 | 4.35 | 5.068 | 8.659 | 12.255 | 14.379 | 22.963 | 24.68 | 25.109
 #> Percentiles - Relative (%) Final:
-#> 0.144 | 0.19 | 0.372 | 1.285 | 1.704 | 2.43 | 2.83 | 2.91 | 2.93
+#> 0.24 | 0.282 | 0.449 | 1.287 | 1.315 | 1.563 | 2.103 | 2.211 | 2.238
 #> Percentiles - Absolute (Units) Final:
-#> 560.488 | 749.785 | 1506.976 | 5292.931 | 9489.092 | 12787.7 | 25061.708 |
-#> 27516.509 | 28130.21
+#> 935.688 | 1110.245 | 1808.474 | 5299.617 | 7249.836 | 8228.168 | 19016.28 |
+#> 21173.903 | 21713.308
 #> 
 #> ── Summary Statistics
 #> • Sensitivity Rate: 0% (0/5 cells)
 #> • Internal Cells: 4 (80%)
-#> • Noise Reduction: 86.85%
+#> • Noise Reduction: 89.71%
 #> 
 #> ── EZS Perturbation Summary: "table_b" ─────────────────────────────────────────
 #> 
 #> ── Variable: "assets" ──
 #> 
 #> ── OVERALL
-#> ℹ nrCells: 5 | MAPE (Initial): 12.046% | MAPE (Final): 4.956% | Noise Reduction: 58.85%
+#> ℹ nrCells: 5 | MAPE (Initial): 12.046% | MAPE (Final): 3.953% | Noise Reduction: 67.18%
 #> Percentiles - Relative (%) Initial:
 #> -0.715 | -0.618 | -0.229 | 1.717 | 10.225 | 11.761 | 31.002 | 34.85 | 35.812
 #> Percentiles - Relative (%) Final:
-#> -6.866 | -6.795 | -6.513 | -5.101 | 0.707 | 4.221 | 7.154 | 7.74 | 7.887
+#> -6.499 | -6.247 | -5.24 | -0.203 | 1.455 | 1.743 | 8.242 | 9.542 | 9.867
 #> Percentiles - Absolute (Units) Final:
-#> -221829.755 | -221272.605 | -219044.006 | -207901.009 | 112336.321 | 155807.158
-#> | 340169.373 | 377041.816 | 386259.927
+#> -209993.153 | -201923.836 | -169646.57 | -8260.237 | 85341.958 | 231293.01 |
+#> 337622.156 | 358887.985 | 364204.443
 #> 
 #> ── Summary Statistics
 #> • Sensitivity Rate: 0% (0/5 cells)
 #> • Internal Cells: 4 (80%)
-#> • Noise Reduction: 58.85%
+#> • Noise Reduction: 67.18%
 names(result_b)
 #> [1] "turnover" "assets"
 ```
@@ -537,7 +537,7 @@ restores the full state.
 
 export_file <- file.path(tempdir(), "rebalanced_data.rds")
 sdc$export(file = export_file)
-#> ✔ Exported to /tmp/RtmpF4ntCf/rebalanced_data.rds
+#> ✔ Exported to /tmp/RtmpWJCWWw/rebalanced_data.rds
 
 # In a later session: load and continue without rebalancing again
 sdc2 <- rn_setup(export_file)
@@ -585,11 +585,11 @@ t_re <- rn_perturb(state_re, dim_list = dims_industry_only, variables = "workers
 head(rn_format(t_re))
 #>    industry n_obs is_internal workers workers_init workers_pert is_sens_workers
 #>      <char> <num>      <lgcl>   <num>        <num>        <num>          <lgcl>
-#> 1:    Total   300       FALSE   73686     83914.68     76617.98           FALSE
-#> 2:     Tech    91        TRUE   20800     25302.16     21261.32           FALSE
-#> 3:      Mfg    62        TRUE   15925     18689.39     16782.93           FALSE
-#> 4:   Retail    71        TRUE   16140     17937.37     16788.53           FALSE
-#> 5: Services    76        TRUE   20821     21985.76     21785.20           FALSE
+#> 1:    Total   300       FALSE   73686     83914.68     77832.42           FALSE
+#> 2:     Tech    91        TRUE   20800     25302.16     20828.84           FALSE
+#> 3:      Mfg    62        TRUE   15925     18689.39     16939.65           FALSE
+#> 4:   Retail    71        TRUE   16140     17937.37     19584.89           FALSE
+#> 5: Services    76        TRUE   20821     21985.76     20479.04           FALSE
 ```
 
 The R6 export object can also be fed directly into the functional
@@ -633,9 +633,9 @@ head(sdc$get_microdata())
 #>    direction_rebalanced
 #>                   <int>
 #> 1:                   -1
-#> 2:                    1
-#> 3:                   -1
-#> 4:                   -1
+#> 2:                   -1
+#> 3:                    1
+#> 4:                    1
 #> 5:                   -1
 #> 6:                    1
 head(sdc$get_microdata(include_record_id = TRUE))
@@ -651,9 +651,9 @@ head(sdc$get_microdata(include_record_id = TRUE))
 #>    record_id  strID direction_rebalanced
 #>        <int> <char>                <int>
 #> 1:        28    102                   -1
-#> 2:        62    102                    1
-#> 3:        73    102                   -1
-#> 4:        81    102                   -1
+#> 2:        62    102                   -1
+#> 3:        73    102                    1
+#> 4:        81    102                    1
 #> 5:       113    102                   -1
 #> 6:       122    102                    1
 
@@ -671,9 +671,9 @@ head(as.data.table(state_fun))
 #>    direction_rebalanced
 #>                   <int>
 #> 1:                   -1
-#> 2:                    1
-#> 3:                   -1
-#> 4:                   -1
+#> 2:                   -1
+#> 3:                    1
+#> 4:                    1
 #> 5:                   -1
 #> 6:                    1
 ```

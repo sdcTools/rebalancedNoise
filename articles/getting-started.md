@@ -59,7 +59,7 @@ some cells hold fewer than five records and are flagged as sensitive.
 ``` r
 
 library(rebalancedNoise)
-#> Welcome to rebalancedNoise 0.3.1.
+#> Welcome to rebalancedNoise 0.3.2.
 library(data.table)
 #> 
 #> Attaching package: 'data.table'
@@ -68,7 +68,7 @@ library(data.table)
 #>     %notin%
 library(sdcHierarchies)
 #> Loading required package: shinythemes
-#> Package 'sdcHierarchies' 0.23.1 has been loaded.
+#> Package 'sdcHierarchies' 0.23.2 has been loaded.
 
 set.seed(1)
 N <- 300
@@ -179,12 +179,12 @@ res_r6 <- sdc$get_results("table_a")
 head(res_r6)
 #>    country n_obs is_internal  turnover turnover_init turnover_pert
 #>     <char> <num>      <lgcl>     <num>         <num>         <num>
-#> 1:   Total   300       FALSE 1651113.7     1853460.8     1679243.9
-#> 2:      AT    88        TRUE  544080.2      631265.0      548794.9
-#> 3:      DE    72        TRUE  335581.4      281955.3      334307.4
-#> 4:      NL    57        TRUE  313695.9      372977.6      316609.1
-#> 5:      SE    41        TRUE  216463.0      289693.4      215228.8
-#> 6:      FR    32        TRUE  197918.8      200338.4      187072.6
+#> 1:   Total   300       FALSE 1651113.7     1853460.8     1672827.0
+#> 2:      AT    88        TRUE  544080.2      631265.0      544777.0
+#> 3:      DE    72        TRUE  335581.4      281955.3      332413.7
+#> 4:      NL    57        TRUE  313695.9      372977.6      315374.5
+#> 5:      SE    41        TRUE  216463.0      289693.4      213749.3
+#> 6:      FR    32        TRUE  197918.8      200338.4      189281.4
 #>    is_sens_turnover
 #>              <lgcl>
 #> 1:            FALSE
@@ -222,12 +222,12 @@ res_fun_wide <- rn_format(res_fun)
 head(res_fun_wide)
 #>    country n_obs is_internal  turnover turnover_init turnover_pert
 #>     <char> <num>      <lgcl>     <num>         <num>         <num>
-#> 1:   Total   300       FALSE 1651113.7     1853460.8     1679243.9
-#> 2:      AT    88        TRUE  544080.2      631265.0      548794.9
-#> 3:      DE    72        TRUE  335581.4      281955.3      334307.4
-#> 4:      NL    57        TRUE  313695.9      372977.6      316609.1
-#> 5:      SE    41        TRUE  216463.0      289693.4      215228.8
-#> 6:      FR    32        TRUE  197918.8      200338.4      187072.6
+#> 1:   Total   300       FALSE 1651113.7     1853460.8     1672827.0
+#> 2:      AT    88        TRUE  544080.2      631265.0      544777.0
+#> 3:      DE    72        TRUE  335581.4      281955.3      332413.7
+#> 4:      NL    57        TRUE  313695.9      372977.6      315374.5
+#> 5:      SE    41        TRUE  216463.0      289693.4      213749.3
+#> 6:      FR    32        TRUE  197918.8      200338.4      189281.4
 #>    is_sens_turnover
 #>              <lgcl>
 #> 1:            FALSE
@@ -270,12 +270,12 @@ contributes a group of columns.
 head(res_r6)
 #>    country n_obs is_internal  turnover turnover_init turnover_pert
 #>     <char> <num>      <lgcl>     <num>         <num>         <num>
-#> 1:   Total   300       FALSE 1651113.7     1853460.8     1679243.9
-#> 2:      AT    88        TRUE  544080.2      631265.0      548794.9
-#> 3:      DE    72        TRUE  335581.4      281955.3      334307.4
-#> 4:      NL    57        TRUE  313695.9      372977.6      316609.1
-#> 5:      SE    41        TRUE  216463.0      289693.4      215228.8
-#> 6:      FR    32        TRUE  197918.8      200338.4      187072.6
+#> 1:   Total   300       FALSE 1651113.7     1853460.8     1672827.0
+#> 2:      AT    88        TRUE  544080.2      631265.0      544777.0
+#> 3:      DE    72        TRUE  335581.4      281955.3      332413.7
+#> 4:      NL    57        TRUE  313695.9      372977.6      315374.5
+#> 5:      SE    41        TRUE  216463.0      289693.4      213749.3
+#> 6:      FR    32        TRUE  197918.8      200338.4      189281.4
 #>    is_sens_turnover
 #>              <lgcl>
 #> 1:            FALSE
@@ -296,37 +296,37 @@ names. It is convenient for plotting and further processing.
 head(sdc$get_results("table_a", format = "long"))
 #>    country n_obs is_internal variable val_pert_init  val_orig  val_pert
 #>     <char> <num>      <lgcl>   <char>         <num>     <num>     <num>
-#> 1:   Total   300       FALSE turnover     1853460.8 1651113.7 1679243.9
-#> 2:      AT    88        TRUE turnover      631265.0  544080.2  548794.9
-#> 3:      DE    72        TRUE turnover      281955.3  335581.4  334307.4
-#> 4:      NL    57        TRUE turnover      372977.6  313695.9  316609.1
-#> 5:      SE    41        TRUE turnover      289693.4  216463.0  215228.8
-#> 6:      FR    32        TRUE turnover      200338.4  197918.8  187072.6
+#> 1:   Total   300       FALSE turnover     1853460.8 1651113.7 1672827.0
+#> 2:      AT    88        TRUE turnover      631265.0  544080.2  544777.0
+#> 3:      DE    72        TRUE turnover      281955.3  335581.4  332413.7
+#> 4:      NL    57        TRUE turnover      372977.6  313695.9  315374.5
+#> 5:      SE    41        TRUE turnover      289693.4  216463.0  213749.3
+#> 6:      FR    32        TRUE turnover      200338.4  197918.8  189281.4
 #>    is_sensitive diff_init_pct diff_final_pct
 #>          <lgcl>         <num>          <num>
-#> 1:        FALSE        12.255          1.704
-#> 2:        FALSE        16.024          0.867
-#> 3:        FALSE       -15.980         -0.380
-#> 4:        FALSE        18.898          0.929
-#> 5:        FALSE        33.830         -0.570
-#> 6:        FALSE         1.223         -5.480
+#> 1:        FALSE        12.255          1.315
+#> 2:        FALSE        16.024          0.128
+#> 3:        FALSE       -15.980         -0.944
+#> 4:        FALSE        18.898          0.535
+#> 5:        FALSE        33.830         -1.254
+#> 6:        FALSE         1.223         -4.364
 head(rn_format(res_fun, format = "long"))
 #>    country n_obs is_internal variable val_pert_init  val_orig  val_pert
 #>     <char> <num>      <lgcl>   <char>         <num>     <num>     <num>
-#> 1:   Total   300       FALSE turnover     1853460.8 1651113.7 1679243.9
-#> 2:      AT    88        TRUE turnover      631265.0  544080.2  548794.9
-#> 3:      DE    72        TRUE turnover      281955.3  335581.4  334307.4
-#> 4:      NL    57        TRUE turnover      372977.6  313695.9  316609.1
-#> 5:      SE    41        TRUE turnover      289693.4  216463.0  215228.8
-#> 6:      FR    32        TRUE turnover      200338.4  197918.8  187072.6
+#> 1:   Total   300       FALSE turnover     1853460.8 1651113.7 1672827.0
+#> 2:      AT    88        TRUE turnover      631265.0  544080.2  544777.0
+#> 3:      DE    72        TRUE turnover      281955.3  335581.4  332413.7
+#> 4:      NL    57        TRUE turnover      372977.6  313695.9  315374.5
+#> 5:      SE    41        TRUE turnover      289693.4  216463.0  213749.3
+#> 6:      FR    32        TRUE turnover      200338.4  197918.8  189281.4
 #>    is_sensitive diff_init_pct diff_final_pct
 #>          <lgcl>         <num>          <num>
-#> 1:        FALSE        12.255          1.704
-#> 2:        FALSE        16.024          0.867
-#> 3:        FALSE       -15.980         -0.380
-#> 4:        FALSE        18.898          0.929
-#> 5:        FALSE        33.830         -0.570
-#> 6:        FALSE         1.223         -5.480
+#> 1:        FALSE        12.255          1.315
+#> 2:        FALSE        16.024          0.128
+#> 3:        FALSE       -15.980         -0.944
+#> 4:        FALSE        18.898          0.535
+#> 5:        FALSE        33.830         -1.254
+#> 6:        FALSE         1.223         -4.364
 ```
 
 ### Column Reference
@@ -369,11 +369,11 @@ t_b <- rn_perturb(state, dim_list = dims_industry_only, variables = "workers")
 head(rn_format(t_b))
 #>    industry n_obs is_internal workers workers_init workers_pert is_sens_workers
 #>      <char> <num>      <lgcl>   <num>        <num>        <num>          <lgcl>
-#> 1:    Total   300       FALSE   73686     83914.68     76617.98           FALSE
-#> 2:     Tech    91        TRUE   20800     25302.16     21261.32           FALSE
-#> 3:      Mfg    62        TRUE   15925     18689.39     16782.93           FALSE
-#> 4:   Retail    71        TRUE   16140     17937.37     16788.53           FALSE
-#> 5: Services    76        TRUE   20821     21985.76     21785.20           FALSE
+#> 1:    Total   300       FALSE   73686     83914.68     77832.42           FALSE
+#> 2:     Tech    91        TRUE   20800     25302.16     20828.84           FALSE
+#> 3:      Mfg    62        TRUE   15925     18689.39     16939.65           FALSE
+#> 4:   Retail    71        TRUE   16140     17937.37     19584.89           FALSE
+#> 5: Services    76        TRUE   20821     21985.76     20479.04           FALSE
 
 # Evaluate a stored R6 table with the functional summary
 rn_summarize(sdc$get_table("table_a"))
@@ -383,19 +383,19 @@ rn_summarize(sdc$get_table("table_a"))
 #> ── Variable: "turnover" ──
 #> 
 #> ── OVERALL
-#> ℹ nrCells: 7 | MAPE (Initial): 25.181% | MAPE (Final): 12.57% | Noise Reduction: 50.08%
+#> ℹ nrCells: 7 | MAPE (Initial): 25.181% | MAPE (Final): 12.371% | Noise Reduction: 50.87%
 #> Percentiles - Relative (%) Initial:
 #> -15.98 | -14.948 | -10.819 | 6.739 | 16.024 | 26.364 | 64.789 | 75.403 | 78.057
 #> Percentiles - Relative (%) Final:
-#> -5.48 | -5.185 | -4.007 | -0.475 | 0.867 | 1.316 | 55.151 | 73.476 | 78.057
+#> -4.364 | -4.177 | -3.431 | -1.099 | 0.128 | 0.925 | 55.034 | 73.452 | 78.057
 #> Percentiles - Absolute (Units) Final:
-#> -10846.157 | -10271.829 | -7974.517 | -1254.123 | 2913.184 | 16422.458 |
-#> 32138.769 | 33513.132 | 33856.722
+#> -8637.447 | -8309.262 | -6996.523 | -2940.675 | 696.798 | 11695.947 | 30213.698
+#> | 33128.117 | 33856.722
 #> 
 #> ── Summary Statistics
 #> • Sensitivity Rate: 0% (0/7 cells)
 #> • Internal Cells: 6 (85.7%)
-#> • Noise Reduction: 50.08%
+#> • Noise Reduction: 50.87%
 ```
 
 The reverse direction works as well. An object created with `rn_init()`
